@@ -5,6 +5,11 @@
 #include <string>
 #include <stdexcept>
 #include <filesystem>
+#include "customdatastructures.h"
+#include <iostream>
+#include <utility>
+
+class company;
 
 class dbWorker {
 public:
@@ -37,6 +42,11 @@ public:
     void importPdfs(const std::filesystem::path& folder);
     void loadPdf(int64_t id, const std::string& outputPath);
     void pdfToImages(int64_t documentId);
+    void importCsv(const std::filesystem::path& folder);
+    std::unique_ptr<company> getCompany(const std::string& uid);
+
+    CompanyLinks getCompanyLinks(const std::string& uid);
+    CompanyPayments getCompanyPayments(const std::string& uid);
 
 private:
     inline static std::mutex sinMut;
