@@ -265,9 +265,21 @@ CompanyLinks dbWorker::getCompanyLinks(const std::string& uid) {
     return data;
 }
 
+bool dbWorker::hasPdfDocuments() {
+    if (!isConnected()) {
+        throw std::runtime_error("Database is not connected");
+    }
 
+    pqxx::read_transaction tx(*connection);
 
-void dbWorker::pdfToImages(int64_t documentId) {
+    auto result = tx.exec(
+        "SELECT EXISTS(SELECT 1 FROM pdf_documents)"
+    );
+
+    return result[0][0].as<bool>();
+}
+
+std::vector<poppler::image> dbWorker::pdfToImages(int64_t documentId) {
     if (!isConnected()) {
         throw std::runtime_error("Database is not connected");
     }
@@ -286,37 +298,34 @@ void dbWorker::pdfToImages(int64_t documentId) {
     pqxx::bytes pdfBytes =
         result[0]["content"].as<pqxx::bytes>();
 
-auto pdfData = std::make_unique<poppler::byte_array>();
+    auto pdfData = std::make_unique<poppler::byte_array>();
 
-const char* begin =
-    reinterpret_cast<const char*>(pdfBytes.data());
+    const char* begin =
+        reinterpret_cast<const char*>(pdfBytes.data());
 
-pdfData->assign(
-    begin,
-    begin + pdfBytes.size()
-);
+    pdfData->assign(
+        begin,
+        begin + pdfBytes.size()
+    );
 
-std::unique_ptr<poppler::document> doc(
-    poppler::document::load_from_data(pdfData.get())
-);
+    std::unique_ptr<poppler::document> doc(
+        poppler::document::load_from_data(pdfData.get())
+    );
 
     if (!doc) {
         throw std::runtime_error("Cannot open PDF from database");
     }
 
-    std::filesystem::path outputFolder =
-        std::filesystem::current_path() /
-        "pages" /
-        std::to_string(documentId);
+poppler::page_renderer renderer;
+renderer.set_image_format(poppler::image::format_rgb24);
 
-    std::filesystem::create_directories(outputFolder);
-
-    poppler::page_renderer renderer;
-
-    int totalPages = doc->pages();
+int totalPages = doc->pages();
 
     std::cout << "Total pages: "
               << totalPages << std::endl;
+
+    std::vector<poppler::image> images;
+    images.reserve(totalPages);
 
     for (int i = 0; i < totalPages; ++i) {
 
@@ -342,31 +351,16 @@ std::unique_ptr<poppler::document> doc(
             continue;
         }
 
-        std::filesystem::path outputPath =
-            outputFolder /
-            ("page_" + std::to_string(i + 1) + ".png");
+        images.push_back(std::move(image));
 
-        auto utf8Path = outputPath.u8string();
-
-        std::string filename(
-            reinterpret_cast<const char*>(utf8Path.data()),
-            utf8Path.size()
-        );
-
-        if (!image.save(filename, "png")) {
-            std::cerr << "Cannot save page "
-                      << i + 1 << std::endl;
-            continue;
-        }
-
-        std::cout << "Saved page "
-                  << i + 1 << "/" << totalPages
-                  << std::endl;
+        std::cout << "Rendered page " << i + 1 << "/" << totalPages << std::endl;
     }
 
-    std::cout << "PDF rendering completed!"
-              << std::endl;
+    std::cout << "PDF rendering completed!" << std::endl;
+
+    return images;
 }
+
 
 
 void dbWorker::importCsv(const fs::path& folder) {
@@ -632,6 +626,69 @@ void dbWorker::importCsv(const fs::path& folder) {
     std::cout << "CSV import finished!" << std::endl;
 }
 
+void dbWorker::deletePdf(int64_t documentId) {
+    if (!isConnected()) {
+        throw std::runtime_error("Database is not connected");
+    }
+
+    pqxx::work tx(*connection);
+
+    auto result = tx.exec_params(
+        "DELETE FROM public.pdf_documents WHERE id = $1",
+        documentId
+    );
+
+    if (result.affected_rows() != 1) {
+        throw std::runtime_error("PDF deletion failed");
+    }
+
+    tx.commit();
+
+    std::cout << "PDF deleted: " << documentId << std::endl;
+}
+void dbWorker::saveAIResponse(const std::vector<std::string>& aiResponses) {
+    if (!isConnected()) {
+        throw std::runtime_error("Database is not connected");
+    }
+
+    pqxx::work tx(*connection);
+    int inserted = 0;
+
+    for (const auto& response : aiResponses) {
+        nlohmann::json news = nlohmann::json::parse(response);
+
+        if (!news.is_array()) {
+            throw std::runtime_error("AI response must be a JSON array");
+        }
+
+        for (const auto& item : news) {
+            std::string title = item.at("title").get<std::string>();
+            std::string text = item.at("text").get<std::string>();
+
+            int finance = item.at("finance").get<int>();
+            int business = item.at("buisness").get<int>();
+            int global = item.at("global").get<int>();
+
+            tx.exec_params(
+                "INSERT INTO public.ai_features "
+                "(title, text, finance_importance, business_importance, global_importance) "
+                "VALUES ($1, $2, $3, $4, $5)",
+                title,
+                text,
+                finance,
+                business,
+                global
+            );
+
+            ++inserted;
+        }
+    }
+
+    tx.commit();
+
+    std::cout << "Inserted " << inserted
+              << " news into database" << std::endl;
+}
 
 void dbWorker::loadPdf(int64_t id, const std::string& outputPath) {
     if (!isConnected()) {
@@ -830,38 +887,17 @@ void dbWorker::importPdfs(const fs::path& folder) {
             );
         )");
 
-        tx.exec(R"(
-            CREATE TABLE IF NOT EXISTS ai_features (
-                id BIGSERIAL PRIMARY KEY,
 
-                document_id BIGINT NOT NULL
-                    REFERENCES pdf_documents(id)
-                    ON DELETE CASCADE,
-
-                name TEXT NOT NULL,
-                value TEXT,
-                description TEXT,
-                category TEXT,
-
-                importance DOUBLE PRECISION
-                    CHECK (importance BETWEEN 0 AND 1),
-
-                confidence DOUBLE PRECISION
-                    CHECK (confidence BETWEEN 0 AND 1),
-
-                page_number INTEGER
-                    CHECK (page_number > 0),
-
-                properties JSONB NOT NULL DEFAULT '{}'::jsonb,
-
-                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
-        )");
-
-        tx.exec(R"(
-            CREATE INDEX IF NOT EXISTS idx_ai_features_document
-            ON ai_features(document_id);
-        )");
+tx.exec(R"(
+    CREATE TABLE IF NOT EXISTS ai_features (
+        id BIGSERIAL PRIMARY KEY,
+        title TEXT,
+        text TEXT,
+        finance_importance INT,
+        business_importance INT,
+        global_importance INT
+    );
+)");
 
 
     // Юридические лица

@@ -10,6 +10,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(POPPLER_CPP REQUIRED IMPORTED_TARGET poppler-cpp)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(Crow CONFIG REQUIRED)
+find_package(CURL REQUIRED)
+find_package(PNG REQUIRED)
 
 add_executable(main 
 pdfworker.h
@@ -20,6 +22,7 @@ main.cpp
 pdfworker.cpp
 dbworker.cpp
 company.cpp
+dataextractor.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -27,4 +30,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Crow::Crow
     PkgConfig::POPPLER_CPP
     nlohmann_json::nlohmann_json
+    CURL::libcurl
+    PNG::PNG
 )

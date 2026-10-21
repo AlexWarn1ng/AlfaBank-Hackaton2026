@@ -5,6 +5,8 @@
     "poppler",
     "libpqxx",
     "crow",
-    "nlohmann-json"
+    "nlohmann-json",
+    "curl",
+    "libpng"
   ]
 }
