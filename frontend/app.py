@@ -4,6 +4,7 @@ from pathlib import Path
 from threading import Lock
 from uuid import uuid4
 import requests
+import os
 
 from flask import Flask, render_template, request, redirect, session, abort
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -52,9 +53,14 @@ def load_news():
     with NEWS_FILE.open("r", encoding="utf-8") as file:
         return json.load(file)
 
+NEWS_ANALYZER_URL = os.getenv(
+    "NEWS_ANALYZER_URL",
+    "http://localhost:5001"
+)
+
 def analyze_news(news, user):
     response = requests.post(
-        "http://localhost:5001/api/analysis/relevance",
+        f"{NEWS_ANALYZER_URL}/api/analysis/relevance",
         json={
             "newsTitle": news["title"],
             "newsText": news.get("summary", ""),
@@ -285,4 +291,8 @@ def news_detail(news_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=False
+    )

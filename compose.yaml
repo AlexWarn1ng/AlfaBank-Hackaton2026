@@ -1,0 +1,30 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      NEWS_ANALYZER_URL: http://news-analyzer:8080
+
+    depends_on:
+      - news-analyzer
+
+    restart: unless-stopped
+
+  news-analyzer:
+    build:
+      context: ./news-analyzer
+      dockerfile: NewsAnalyzer/Dockerfile
+
+    ports:
+      - "5001:8080"
+
+    environment:
+      ASPNETCORE_HTTP_PORTS: "8080"
+      AI_API_KEY: ${AI_API_KEY:?Set AI_API_KEY in .env}
+
+    restart: unless-stopped
