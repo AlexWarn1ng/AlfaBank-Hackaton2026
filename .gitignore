@@ -1,0 +1,52 @@
+# Python
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/data/users.json
+
+# .NET
+**/bin/
+**/obj/
+**/.idea/
+**/.vs/
+
+# C++
+**/build/
+**/cmake-build-*/
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+build/
+build-*/
+CMakeUserPresets.json
+
+
+build-vcpkg/
+vcpkg_installed/
+.vcpkg-root
+
+
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln
+*.vcxproj
+
+
+*.log
+*.obj
+*.o
+*.exe
+*.pdb
+*.ilk
+*.idb
