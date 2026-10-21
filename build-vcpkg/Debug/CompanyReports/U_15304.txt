@@ -1,0 +1,54 @@
+========== COMPANY ==========
+UID: U_15304
+Org type: КОММ_ОРГ
+OKFS name: ЧАСТНАЯ СОБСТВЕННОСТЬ
+Company age: 8-15
+Eco mark: Оптимизация
+Main OKVED code: 68.20
+Main OKVED name: Аренда и управление собственным или арендованным недвижимым имуществом
+Negative mark: 1.0
+Workers FNS: Менее 15
+Workers Spark: 
+CL type: CLIENT
+RKO mark: 0.0
+GAR mark: 0.0
+LOA mark: 0.0
+LEA mark: 0.0
+DEP mark: 0.0
+ZPP mark: 1.0
+FTS flag: 0.0
+FTS country: КИТАЙ, ТУРЦИЯ, ГОНКОНГ
+Factoring mark: 0.0
+Revenue: 680021528.0
+Group ID: group_134425_sb
+City: г. Ростов-На-Дону
+Region: Ростовская область
+
+========== LINKS ==========
+Related persons: 0
+Related companies: 0
+Shared persons: 0
+Related person IDs (0): none
+Related company IDs (0): none
+Related regions (0): none
+
+========== PAYMENTS ==========
+Incoming amount: 265000.00
+Outgoing amount: 1035000.00
+Incoming count: 14
+Outgoing count: 25
+Unique payers: 3
+Unique beneficiaries: 6
+
+========== COUNTERPARTIES ==========
+Total unique counterparties: 8
+U_1941
+U_234855
+U_249325
+U_66
+U_82393
+U_82644
+U_84713
+U_91349
+
+=============================

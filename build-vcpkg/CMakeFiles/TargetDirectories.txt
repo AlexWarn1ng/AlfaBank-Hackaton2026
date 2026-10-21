@@ -1,0 +1,3 @@
+C:/Users/rolek/Desktop/*redacted*/build-vcpkg/CMakeFiles/main.dir
+C:/Users/rolek/Desktop/*redacted*/build-vcpkg/CMakeFiles/ALL_BUILD.dir
+C:/Users/rolek/Desktop/*redacted*/build-vcpkg/CMakeFiles/ZERO_CHECK.dir
