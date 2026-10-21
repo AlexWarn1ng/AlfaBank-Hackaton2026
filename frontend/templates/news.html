@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ news.title }} - Альфа Новости</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="feed-page">
+
+    <header class="site-header">
+        <a class="brand" href="/feed">
+            <span class="brand-icon">А</span>
+            <span>альфа новости</span>
+        </a>
+
+        <div class="header-user">
+            <span class="user-name">{{ user.name }}</span>
+
+            <form method="post" action="/logout">
+                <button class="button button-outline" type="submit">
+                    Выйти
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <main class="article-layout">
+        <a class="back-link" href="/feed">← К новостям</a>
+
+        <!-- Событие отдельно от его интерпретации -->
+        <article class="article-card">
+            <div class="news-meta">
+                <span>{{ news.source }}</span>
+                <span>{{ news.date }}</span>
+            </div>
+
+            <h1>{{ news.title }}</h1>
+            <p class="article-text">{{ news.text }}</p>
+        </article>
+
+        <!-- Пока показываем готовый пример, а не ответ модели -->
+        <section class="analysis-section">
+            <div class="feed-heading">
+                <div>
+                    <span class="eyebrow">ВЛИЯНИЕ НА ВАШ БИЗНЕС</span>
+                    <h2>Подробный разбор</h2>
+                    <p class="muted">{{ company }} · {{ role }}</p>
+                </div>
+
+                <span class="status-badge">Пример анализа</span>
+            </div>
+
+            <p class="demo-notice">
+                Это тестовый разбор из JSON. Генерация нейросетью
+                и проверка источников пока не подключены.
+            </p>
+
+            <div class="analysis-summary">
+                <span class="eyebrow">ГЛАВНОЕ</span>
+                <h3>{{ analysis.summary }}</h3>
+                <p>{{ reason }}</p>
+
+                <!-- Роль пока меняет акцент, а не генерирует новый текст -->
+                <p class="role-focus">
+                    <strong>Фокус вашей роли:</strong> {{ role_focus }}
+                </p>
+            </div>
+
+            <div class="analysis-grid">
+                <section class="analysis-block">
+                    <span class="block-label risk-label">РИСКИ</span>
+                    <h3>На что обратить внимание</h3>
+
+                    <ul class="analysis-list">
+                        {% for risk in analysis.risks %}
+                            <li>{{ risk }}</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+
+                <section class="analysis-block">
+                    <span class="block-label opportunity-label">
+                        ВОЗМОЖНОСТИ
+                    </span>
+                    <h3>Что можно использовать</h3>
+
+                    <ul class="analysis-list">
+                        {% for opportunity in analysis.opportunities %}
+                            <li>{{ opportunity }}</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            </div>
+
+            <section class="analysis-block">
+                <span class="block-label">СЛЕДУЮЩИЕ ШАГИ</span>
+                <h3>Что можно сделать</h3>
+
+                <ol class="analysis-list">
+                    {% for action in analysis.actions %}
+                        <li>{{ action }}</li>
+                    {% endfor %}
+                </ol>
+            </section>
+
+            <section class="analysis-block">
+                <span class="block-label">АНАЛИТИКА БАНКА</span>
+                <h3>Позиция Альфа-Банка</h3>
+                <p class="muted">{{ analysis.bank_position }}</p>
+            </section>
+
+            <section class="analysis-block">
+                <span class="block-label">НЕОПРЕДЕЛЁННОСТЬ</span>
+                <h3>Чего пока не знаем</h3>
+
+                <ul class="analysis-list">
+                    {% for unknown in analysis.unknowns %}
+                        <li>{{ unknown }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Python
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/data/users.json
+
+# .NET
+**/bin/
+**/obj/
+**/.idea/
+**/.vs/
+
+# C++
+**/build/
+**/cmake-build-*/
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS
+.DS_Store
+Thumbs.db

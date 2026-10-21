@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Лента - Альфа Новости</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="feed-page">
+
+    <!-- Шапка и выход из аккаунта -->
+    <header class="site-header">
+        <a class="brand" href="/feed">
+            <span class="brand-icon">А</span>
+            <span>альфа новости</span>
+        </a>
+
+        <div class="header-user">
+            <span class="user-name">{{ user.name }}</span>
+
+            <form method="post" action="/logout">
+                <button class="button button-outline" type="submit">
+                    Выйти
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <main class="feed-layout">
+        <aside class="sidebar">
+            <span class="eyebrow">ВАША КОМПАНИЯ</span>
+            <h2>{{ company }}</h2>
+            <p class="muted">{{ role }}</p>
+
+            <nav class="side-nav" aria-label="Основная навигация">
+                <a class="nav-link active" href="/feed" aria-current="page">
+                    <span class="nav-dot"></span>
+                    Лента новостей
+                </a>
+            </nav>
+
+            <div class="sidebar-note">
+                <strong>Почему эти новости?</strong>
+                <p>
+                    Порядок учитывает компанию и должность.
+                    Пока используются демонстрационные данные.
+                </p>
+            </div>
+        </aside>
+
+        <section class="feed-content">
+            <div class="feed-heading">
+                <div>
+                    <span class="eyebrow">ПЕРСОНАЛЬНАЯ АНАЛИТИКА</span>
+                    <h1>Ваша лента</h1>
+                    <p class="muted">Сначала - самое важное для вас.</p>
+                </div>
+
+                <span class="status-badge">Демо-режим</span>
+            </div>
+
+            <p class="demo-notice">
+                Все события вымышлены. Анализы подготовлены
+                для демонстрации, нейросеть пока не подключена.
+            </p>
+
+            <!-- Вся карточка является ссылкой на подробный разбор -->
+            <div class="news-list">
+                {% for item in news %}
+                    <a class="news-card"
+                       href="{{ url_for('news_detail', news_id=item.id) }}">
+
+                        <div class="news-meta">
+                            <span>{{ item.source }}</span>
+                            <span>{{ item.date }}</span>
+                        </div>
+
+                        <h2>{{ item.title }}</h2>
+                        <p class="news-summary">{{ item.summary }}</p>
+
+                        <div class="relevance-box">
+                            <span class="eyebrow">ПОЧЕМУ ВАМ ВАЖНО</span>
+                            <p>{{ item.reason }}</p>
+                        </div>
+
+                        <span class="news-link">
+                            Посмотреть разбор →
+                        </span>
+                    </a>
+                {% else %}
+                    <div class="empty-state">
+                        <h2>Пока нет подходящих новостей</h2>
+                        <p>Новые события появятся здесь после загрузки.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

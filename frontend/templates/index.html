@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Вход - Альфа Новости</title>
+
+    <!-- Flask формирует путь к файлу стилей -->
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="auth-layout">
+
+        <!-- Левая часть: описание сервиса -->
+        <section class="auth-intro">
+            <a class="brand" href="/">
+                <span class="brand-icon">А</span>
+                <span>альфа новости</span>
+            </a>
+
+            <div class="intro-content">
+                <span class="eyebrow">ВАШ БИЗНЕС В КОНТЕКСТЕ</span>
+                <h1>Новости меняются.<br>Вы видите главное.</h1>
+                <p>
+                    События, риски и возможности,
+                    которые важны именно вашей компании.
+                </p>
+
+                <div class="intro-tags">
+                    <span>Персональная лента</span>
+                    <span>Аналитика</span>
+                    <span>Рекомендации</span>
+                </div>
+            </div>
+
+            <p class="intro-footer">Аналитика начинается с понимания вашего бизнеса.</p>
+        </section>
+
+        <!-- Правая часть: формы авторизации -->
+        <section class="auth-panel">
+            <div class="auth-card">
+                <div class="section-heading">
+                    <span class="eyebrow">ДОБРО ПОЖАЛОВАТЬ</span>
+                    <h2>Всё важное - здесь</h2>
+                    <p>Войдите или создайте аккаунт, чтобы начать.</p>
+                </div>
+
+                <!-- Ошибки регистрации и входа приходят из Flask -->
+                {% if error %}
+                    <div class="alert" role="alert">{{ error }}</div>
+                {% endif %}
+
+                <!-- Радиокнопки управляют переключением форм через CSS -->
+                <div class="auth-switcher">
+                    <input
+                        class="tab-radio"
+                        type="radio"
+                        name="auth-tab"
+                        id="tab-login"
+                        {% if request.endpoint != 'register' %}checked{% endif %}
+                    >
+                    <input
+                        class="tab-radio"
+                        type="radio"
+                        name="auth-tab"
+                        id="tab-register"
+                        {% if request.endpoint == 'register' %}checked{% endif %}
+                    >
+
+                    <div class="auth-tabs">
+                        <label for="tab-login">Вход</label>
+                        <label for="tab-register">Регистрация</label>
+                    </div>
+
+                    <!-- Форма входа -->
+                    <form class="auth-form login-form"
+                          method="post" action="/login">
+                        <div class="field">
+                            <label for="login-email">Email</label>
+                            <input
+                                id="login-email"
+                                name="email"
+                                type="email"
+                                placeholder="name@company.ru"
+                                autocomplete="username"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="login-password">Пароль</label>
+                            <input
+                                id="login-password"
+                                name="password"
+                                type="password"
+                                placeholder="Введите пароль"
+                                autocomplete="current-password"
+                                required
+                            >
+                        </div>
+
+                        <button class="button button-primary" type="submit">
+                            Войти
+                        </button>
+                    </form>
+
+                    <!-- Форма регистрации -->
+                    <form class="auth-form register-form"
+                          method="post" action="/register">
+                        <div class="field">
+                            <label for="name">Имя</label>
+                            <input
+                                id="name"
+                                name="name"
+                                placeholder="Как к вам обращаться?"
+                                autocomplete="name"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="register-email">Email</label>
+                            <input
+                                id="register-email"
+                                name="email"
+                                type="email"
+                                placeholder="name@company.ru"
+                                autocomplete="username"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="register-password">Пароль</label>
+                            <input
+                                id="register-password"
+                                name="password"
+                                type="password"
+                                placeholder="Минимум 8 символов"
+                                minlength="8"
+                                autocomplete="new-password"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="company">Компания</label>
+                            <select id="company" name="company_id" required>
+                                <option value="">Выберите компанию</option>
+
+                                <!-- Компании берём из словаря в app.py -->
+                                {% for company_id, company_name in companies.items() %}
+                                    <option value="{{ company_id }}">
+                                        {{ company_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="role">Должность</label>
+                            <select id="role" name="role" required>
+                                <option value="">Выберите должность</option>
+
+                                {% for role_id, role_name in roles.items() %}
+                                    <option value="{{ role_id }}">
+                                        {{ role_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button class="button button-primary" type="submit">
+                            Создать аккаунт
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
