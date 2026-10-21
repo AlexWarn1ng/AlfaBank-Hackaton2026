@@ -1,1 +1,0 @@
-# AlfaBank-Hackaton2026
