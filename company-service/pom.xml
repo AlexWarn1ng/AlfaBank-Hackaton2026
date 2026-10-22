@@ -54,8 +54,8 @@
 		</dependency>
 		<!-- PostgreSQL -->
 		<dependency>
-			<groupId>org.*redacted*ql</groupId>
-			<artifactId>*redacted*ql</artifactId>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>

@@ -3,28 +3,38 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-
     ports:
       - "5000:5000"
-
     environment:
       NEWS_ANALYZER_URL: http://news-analyzer:8080
-
+      COMPANY_SERVICE_URL: http://company-service:8888
     depends_on:
       - news-analyzer
-
+      - company-service
     restart: unless-stopped
 
   news-analyzer:
     build:
       context: ./news-analyzer
       dockerfile: NewsAnalyzer/Dockerfile
-
     ports:
       - "5001:8080"
-
     environment:
       ASPNETCORE_HTTP_PORTS: "8080"
       AI_API_KEY: ${AI_API_KEY:?Set AI_API_KEY in .env}
+    restart: unless-stopped
 
+  company-service:
+    build:
+      context: ./company-service
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:?Set POSTGRES_HOST in .env}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      COMPANY_AI_API_KEY: ${COMPANY_AI_API_KEY:?Set COMPANY_AI_API_KEY in .env}
     restart: unless-stopped
