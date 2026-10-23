@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.rendering.PDFRenderer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -24,7 +25,7 @@ public class pdfprocessingservice {
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(60)).build();
 
-    private final String apiKey = "*redacted*";
+    private final String apiKey;
 
     private static final String API =
             "https://changellenge.up.railway.app/v1/chat/completions";
@@ -50,9 +51,11 @@ public class pdfprocessingservice {
 
     public pdfprocessingservice(
             JdbcTemplate db,
-            TransactionTemplate transaction) {
+            TransactionTemplate transaction,
+            @Value("${ai.api.key}") String apiKey) {
         this.db = db;
         this.transaction = transaction;
+        this.apiKey = apiKey;
     }
 
     public int process(byte[] pdf) throws Exception {
