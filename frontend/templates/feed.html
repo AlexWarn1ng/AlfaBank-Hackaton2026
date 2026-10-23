@@ -29,8 +29,8 @@
 
     <main class="feed-layout">
         <aside class="sidebar">
-            <span class="eyebrow">ВАША КОМПАНИЯ</span>
-            <h2>{{ company }}</h2>
+            <span class="eyebrow">ВАШ ПРОФИЛЬ</span>
+            <h2>{{ user.get('f_uid', 'ID не указан') }}</h2>
             <p class="muted">{{ role }}</p>
 
             <nav class="side-nav" aria-label="Основная навигация">
@@ -43,8 +43,7 @@
             <div class="sidebar-note">
                 <strong>Почему эти новости?</strong>
                 <p>
-                    Порядок учитывает компанию и должность.
-                    Пока используются демонстрационные данные.
+                    Новости подобраны с учётом вашей должности.
                 </p>
             </div>
         </aside>
@@ -54,16 +53,15 @@
                 <div>
                     <span class="eyebrow">ПЕРСОНАЛЬНАЯ АНАЛИТИКА</span>
                     <h1>Ваша лента</h1>
-                    <p class="muted">Сначала - самое важное для вас.</p>
+                    <p class="muted">Новости для вашей роли.</p>
                 </div>
 
-                <span class="status-badge">Демо-режим</span>
+
             </div>
 
-            <p class="demo-notice">
-                Все события вымышлены. Анализы подготовлены
-                для демонстрации, нейросеть пока не подключена.
-            </p>
+            {% if error %}
+                <div class="alert" role="alert">{{ error }}</div>
+            {% endif %}
 
             <!-- Вся карточка является ссылкой на подробный разбор -->
             <div class="news-list">
@@ -71,28 +69,20 @@
                     <a class="news-card"
                        href="{{ url_for('news_detail', news_id=item.id) }}">
 
-                        <div class="news-meta">
-                            <span>{{ item.source }}</span>
-                            <span>{{ item.date }}</span>
-                        </div>
-
                         <h2>{{ item.title }}</h2>
-                        <p class="news-summary">{{ item.summary }}</p>
-
-                        <div class="relevance-box">
-                            <span class="eyebrow">ПОЧЕМУ ВАМ ВАЖНО</span>
-                            <p>{{ item.reason }}</p>
-                        </div>
+                        <p class="news-summary">{{ item.text | truncate(240) }}</p>
 
                         <span class="news-link">
                             Посмотреть разбор →
                         </span>
                     </a>
                 {% else %}
+                    {% if not error %}
                     <div class="empty-state">
                         <h2>Пока нет подходящих новостей</h2>
                         <p>Новые события появятся здесь после загрузки.</p>
                     </div>
+                    {% endif %}
                 {% endfor %}
             </div>
         </section>

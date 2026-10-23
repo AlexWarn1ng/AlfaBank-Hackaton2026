@@ -145,17 +145,10 @@
                         </div>
 
                         <div class="field">
-                            <label for="company">Компания</label>
-                            <select id="company" name="company_id" required>
-                                <option value="">Выберите компанию</option>
-
-                                <!-- Компании берём из словаря в app.py -->
-                                {% for company_id, company_name in companies.items() %}
-                                    <option value="{{ company_id }}">
-                                        {{ company_name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
+                            <label for="f_uid">ID клиента (F_uid)</label>
+                            <input id="f_uid" name="f_uid" required
+                                   value="{{ request.form.get('f_uid', '') }}"
+                                   placeholder="Введите ваш F_uid">
                         </div>
 
                         <div class="field">
