@@ -1,12 +1,15 @@
 import json
+import hashlib
 import secrets
+import sqlite3
 from pathlib import Path
 from threading import Lock
 from uuid import uuid4
+from urllib.parse import quote
 import requests
 import os
 
-from flask import Flask, render_template, request, redirect, session, abort
+from flask import Flask, render_template, request, redirect, session, abort, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -14,23 +17,21 @@ app.secret_key = secrets.token_hex(32)
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 USERS_FILE = DATA_DIR / "users.json"
-NEWS_FILE = DATA_DIR / "news.json"
-
-# Акцент подачи для разных должностей.
-ROLE_FOCUS = {
-    "ceo": "Влияние на работу компании и сроки реализации проектов.",
-    "cfo": "Влияние на расходы, финансовые обязательства и планирование.",
-    "accountant": "Сроки расчётов и документы, которые необходимо проверить.",
-    "treasurer": "Платёжный календарь и своевременное исполнение платежей.",
-}
+ANALYSIS_CACHE_FILE = DATA_DIR / "analysis_cache.sqlite3"
 users_lock = Lock()
-
+analysis_cache_lock = Lock()
 DATA_DIR.mkdir(exist_ok=True)
 
-COMPANIES = {
-    "company_1": "Компания 1",
-    "company_2": "Компания 2",
+JAVA_ROLES = {
+    "ceo": "CEO",
+    "cfo": "CFO",
+    "accountant": "ChiefAccountant",
+    "treasurer": "HeadofTreasury",
 }
+COMPANY_SERVICE_URL = os.getenv("COMPANY_SERVICE_URL", "http://localhost:8888").rstrip("/")
+
+class ServiceError(Exception):
+    pass
 
 ROLES = {
     "ceo": "Генеральный директор",
@@ -48,62 +49,117 @@ def load_users():
     with USERS_FILE.open("r", encoding="utf-8") as file:
         return json.load(file)
 
-def load_news():
-    # Читаем тестовые новости из файла.
-    with NEWS_FILE.open("r", encoding="utf-8") as file:
-        return json.load(file)
+NEWS_ANALYZER_URL = os.getenv("NEWS_ANALYZER_URL", "http://localhost:5001").rstrip("/")
 
-NEWS_ANALYZER_URL = os.getenv(
-    "NEWS_ANALYZER_URL",
-    "http://localhost:5001"
-)
+
+def get_news_ids(user):
+    if not user.get("f_uid"):
+        raise ServiceError("У этого аккаунта нет F_uid. Создайте новый аккаунт с ID клиента.")
+    response = requests.get(
+        f"{COMPANY_SERVICE_URL}/api/news/{quote(user['f_uid'], safe='')}/{JAVA_ROLES[user['role']]}",
+        timeout=15,
+    )
+    if response.status_code == 400:
+        message = response.json().get("error")
+        if message == "Can not find your company":
+            raise ServiceError("Для этого F_uid не найдена связанная компания. Проверьте ID.")
+        if message == "Job Title not Found":
+            raise ServiceError("Должность не найдена в сервисе подбора новостей.")
+    response.raise_for_status()
+    ids = response.json()["ID"]
+    if not isinstance(ids, list) or any(type(i) is not int for i in ids):
+        raise ValueError("Invalid news IDs")
+    return list(dict.fromkeys(ids))
+
+
+def get_news_by_ids(ids):
+    if not ids:
+        return []
+    response = requests.post(
+        f"{COMPANY_SERVICE_URL}/api/news/get",
+        data=" ".join(map(str, ids)),
+        headers={"Content-Type": "text/plain"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    items = payload["news"]
+    if not isinstance(items, list):
+        raise ValueError("Invalid news response")
+    by_id = {}
+    for item in items:
+        if (not isinstance(item, dict) or type(item.get("id")) is not int
+                or not isinstance(item.get("title"), str)
+                or not isinstance(item.get("text"), str)):
+            raise ValueError("Invalid news item")
+        by_id[item["id"]] = item
+    return [by_id[i] for i in ids if i in by_id]
+
 
 def analyze_news(news, user):
     response = requests.post(
         f"{NEWS_ANALYZER_URL}/api/analysis/relevance",
         json={
             "newsTitle": news["title"],
-            "newsText": news.get("summary", ""),
+            "newsText": news["text"],
             "userRole": ROLES[user["role"]],
-            "companyName": COMPANIES[user["company_id"]],
+            "companyName": "",
             "industry": "",
             "businessGoals": "",
-            "interests": ""
+            "interests": "",
         },
-        timeout=60
+        timeout=60,
     )
-
     response.raise_for_status()
-    return response.json()
+    analysis = response.json()["analysis"]
+    if isinstance(analysis, str):
+        text = analysis.strip()
+        if text.startswith("```") and text.endswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        analysis = json.loads(text)
+    if not isinstance(analysis, dict):
+        raise ValueError("Invalid analysis")
+    for field in ("summary", "relevanceReason", "recommendedAction"):
+        if not isinstance(analysis.get(field), str):
+            raise ValueError("Invalid analysis text")
+    for field in ("potentialRisks", "potentialOpportunities"):
+        if not isinstance(analysis.get(field), list) or any(
+                not isinstance(item, str) for item in analysis[field]):
+            raise ValueError("Invalid analysis list")
+    return analysis
 
-def get_personal_news(user):
-    # Собираем ленту для компании и должности пользователя.
-    result = []
 
-    for news in load_news():
-        company_data = news["companies"].get(user["company_id"])
+def analysis_cache_key(news, user):
+    source = f"{news['id']}\n{user['role']}\n{news['text']}"
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
-        if not company_data:
-            continue
 
-        # Пока релевантность задаётся тестовыми числами из JSON.
-        role_bonus = news["role_bonus"].get(user["role"], 0)
-        score = company_data["score"] + role_bonus
+def get_cached_analysis(cache_key):
+    with analysis_cache_lock, sqlite3.connect(ANALYSIS_CACHE_FILE) as connection:
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS analysis_cache (
+                cache_key TEXT PRIMARY KEY,
+                analysis TEXT NOT NULL
+            )
+        """)
+        row = connection.execute(
+            "SELECT analysis FROM analysis_cache WHERE cache_key = ?", (cache_key,)
+        ).fetchone()
+    return json.loads(row[0]) if row else None
 
-        result.append({
-            "id": news["id"],
-            "title": news["title"],
-            "summary": news["summary"],
-            "source": news["source"],
-            "date": news["date"],
-            "reason": company_data["reason"],
-            "score": score,
-        })
 
-    # Сначала показываем наиболее релевантные новости.
-    result.sort(key=lambda news: news["score"], reverse=True)
-
-    return result
+def save_cached_analysis(cache_key, analysis):
+    with analysis_cache_lock, sqlite3.connect(ANALYSIS_CACHE_FILE) as connection:
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS analysis_cache (
+                cache_key TEXT PRIMARY KEY,
+                analysis TEXT NOT NULL
+            )
+        """)
+        connection.execute(
+            "INSERT OR REPLACE INTO analysis_cache (cache_key, analysis) VALUES (?, ?)",
+            (cache_key, json.dumps(analysis, ensure_ascii=False)),
+        )
 
 
 def save_users(users):
@@ -134,7 +190,6 @@ def get_current_user():
 def show_auth(error=None, status=200):
     return render_template(
         "index.html",
-        companies=COMPANIES,
         roles=ROLES,
         error=error,
     ), status
@@ -153,10 +208,10 @@ def register():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
-    company_id = request.form.get("company_id", "")
+    f_uid = request.form.get("f_uid", "").strip()
     role = request.form.get("role", "")
 
-    if not all([name, email, password, company_id, role]):
+    if not all([name, email, password, f_uid, role]):
         return show_auth("Заполните все поля.", 400)
 
     if "@" not in email:
@@ -165,11 +220,16 @@ def register():
     if len(password) < 8:
         return show_auth("Пароль должен содержать минимум 8 символов.", 400)
 
-    if company_id not in COMPANIES:
-        return show_auth("Выберите компанию из списка.", 400)
-
     if role not in ROLES:
         return show_auth("Выберите должность из списка.", 400)
+
+    try:
+        get_news_ids({"f_uid": f_uid, "role": role})
+    except ServiceError as error:
+        return show_auth(str(error), 400)
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        app.logger.exception("Could not validate F_uid")
+        return show_auth("Не удалось проверить ID клиента. Попробуйте позже.", 503)
 
     password_hash = generate_password_hash(password)
 
@@ -185,7 +245,7 @@ def register():
             "name": name,
             "email": email,
             "password_hash": password_hash,
-            "company_id": company_id,
+            "f_uid": f_uid,
             "role": role,
         }
 
@@ -224,70 +284,72 @@ def feed():
         session.clear()
         return redirect("/")
 
-    news = get_personal_news(user)
-
+    error = None
+    news = []
+    status = 200
+    try:
+        news = get_news_by_ids(get_news_ids(user))
+    except ServiceError as exc:
+        error, status = str(exc), 400
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        app.logger.exception("Could not load feed")
+        error, status = "Не удалось загрузить новости. Попробуйте обновить страницу позже.", 503
     return render_template(
-        "feed.html",
-        user=user,
-        company=COMPANIES.get(user["company_id"], user["company_id"]),
-        role=ROLES.get(user["role"], user["role"]),
-        news=news,
-    )
+        "feed.html", user=user, role=ROLES.get(user["role"], user["role"]),
+        news=news, error=error,
+    ), status
 
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect("/")
 
-@app.route("/news/<news_id>")
+@app.route("/news/<int:news_id>")
 def news_detail(news_id):
     user = get_current_user()
-
     if not user:
         return redirect("/")
-
-    for news in load_news():
-        if news["id"] != news_id:
-            continue
-
-        company_data = news["companies"].get(user["company_id"])
-
-        if not company_data:
+    try:
+        if news_id not in get_news_ids(user):
             abort(404)
+        items = get_news_by_ids([news_id])
+    except ServiceError as exc:
+        return render_template("feed.html", user=user, role=ROLES[user["role"]],
+                               news=[], error=str(exc)), 400
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        app.logger.exception("Could not load article")
+        return render_template("feed.html", user=user, role=ROLES[user["role"]],
+                               news=[], error="Не удалось загрузить новость. Попробуйте позже."), 503
+    if not items:
+        abort(404)
+    news = items[0]
+    return render_template("news.html", user=user, news=news,
+                           role=ROLES[user["role"]])
 
-        # Запрашиваем AI-анализ именно выбранной новости.
-        try:
-            result = analyze_news(news, user)
 
-            # Пока твой сервис возвращает analysis
-            # как строку, содержащую JSON.
-            analysis = json.loads(result["analysis"])
-
-            print("АНАЛИЗ НОВОСТИ:", analysis)
-
-        except (requests.RequestException, ValueError, KeyError) as e:
-            print("Ошибка анализа:", e)
-            analysis = None
-
-        return render_template(
-            "news.html",
-            user=user,
-            news=news,
-            analysis=company_data["analysis"],
-            ai_analysis=analysis,
-            reason=company_data["reason"],
-            company=COMPANIES.get(
-                user["company_id"],
-                user["company_id"]
-            ),
-            role=ROLES.get(
-                user["role"],
-                user["role"]
-            ),
-            role_focus=ROLE_FOCUS.get(user["role"], ""),
-        )
-
-    abort(404)
+@app.route("/news/<int:news_id>/analysis", methods=["POST"])
+def news_analysis(news_id):
+    user = get_current_user()
+    if not user:
+        return jsonify(error="Сессия завершена. Войдите снова."), 401
+    try:
+        if news_id not in get_news_ids(user):
+            abort(404)
+        items = get_news_by_ids([news_id])
+        if not items:
+            abort(404)
+        news = items[0]
+        cache_key = analysis_cache_key(news, user)
+        analysis = get_cached_analysis(cache_key)
+        if analysis is None:
+            analysis = analyze_news(news, user)
+            save_cached_analysis(cache_key, analysis)
+        return jsonify(analysis=analysis)
+    except ServiceError as exc:
+        return jsonify(error=str(exc)), 400
+    except (requests.RequestException, ValueError, KeyError, TypeError, IndexError, sqlite3.Error):
+        app.logger.exception("Could not analyze article")
+        return jsonify(error="Не удалось выполнить анализ. Попробуйте ещё раз."), 503
 
 
 if __name__ == "__main__":

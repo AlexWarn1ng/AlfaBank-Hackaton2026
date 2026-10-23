@@ -6,6 +6,13 @@
     <title>{{ news.title }} - Альфа Новости</title>
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .analysis-loading { display: flex; align-items: center; gap: 12px; padding: 24px 0; }
+        .analysis-loading[hidden] {display: none;}
+        .spinner { width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #ef3124; border-radius: 50%; animation: spin .8s linear infinite; }
+        .analysis-error { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body class="feed-page">
 
@@ -31,97 +38,74 @@
 
         <!-- Событие отдельно от его интерпретации -->
         <article class="article-card">
-            <div class="news-meta">
-                <span>{{ news.source }}</span>
-                <span>{{ news.date }}</span>
-            </div>
-
             <h1>{{ news.title }}</h1>
             <p class="article-text">{{ news.text }}</p>
         </article>
 
-        <!-- Пока показываем готовый пример, а не ответ модели -->
         <section class="analysis-section">
             <div class="feed-heading">
-                <div>
-                    <span class="eyebrow">ВЛИЯНИЕ НА ВАШ БИЗНЕС</span>
-                    <h2>Подробный разбор</h2>
-                    <p class="muted">{{ company }} · {{ role }}</p>
+                <div><h2>Подробный разбор</h2><p class="muted">{{ role }}</p></div>
+            </div>
+            <div id="analysis-loading" class="analysis-loading">
+                <span class="spinner" aria-hidden="true"></span><span>Готовим анализ новости...</span>
+            </div>
+            <div id="analysis-content" hidden>
+                <div class="analysis-summary">
+                    <span class="eyebrow">ГЛАВНОЕ</span>
+                    <h3 id="analysis-summary"></h3><p id="analysis-reason"></p>
                 </div>
-
-                <span class="status-badge">Пример анализа</span>
-            </div>
-
-            <p class="demo-notice">
-                Это тестовый разбор из JSON. Генерация нейросетью
-                и проверка источников пока не подключены.
-            </p>
-
-            <div class="analysis-summary">
-                <span class="eyebrow">ГЛАВНОЕ</span>
-                <h3>{{ analysis.summary }}</h3>
-                <p>{{ reason }}</p>
-
-                <!-- Роль пока меняет акцент, а не генерирует новый текст -->
-                <p class="role-focus">
-                    <strong>Фокус вашей роли:</strong> {{ role_focus }}
-                </p>
-            </div>
-
-            <div class="analysis-grid">
+                <div class="analysis-grid">
+                    <section class="analysis-block">
+                        <h3>Риски</h3>
+                        <ul id="analysis-risks" class="analysis-list">
+                            <li>Загружаем...</li>
+                        </ul>
+                    </section>
+                    <section class="analysis-block">
+                        <h3>Возможности</h3>
+                        <ul id="analysis-opportunities" class="analysis-list">
+                            <li>Загружаем...</li>
+                        </ul>
+                    </section>
+                </div>
                 <section class="analysis-block">
-                    <span class="block-label risk-label">РИСКИ</span>
-                    <h3>На что обратить внимание</h3>
-
-                    <ul class="analysis-list">
-                        {% for risk in analysis.risks %}
-                            <li>{{ risk }}</li>
-                        {% endfor %}
-                    </ul>
-                </section>
-
-                <section class="analysis-block">
-                    <span class="block-label opportunity-label">
-                        ВОЗМОЖНОСТИ
-                    </span>
-                    <h3>Что можно использовать</h3>
-
-                    <ul class="analysis-list">
-                        {% for opportunity in analysis.opportunities %}
-                            <li>{{ opportunity }}</li>
-                        {% endfor %}
-                    </ul>
+                    <h3>Что можно сделать</h3>
+                    <p id="analysis-action"></p>
                 </section>
             </div>
-
-            <section class="analysis-block">
-                <span class="block-label">СЛЕДУЮЩИЕ ШАГИ</span>
-                <h3>Что можно сделать</h3>
-
-                <ol class="analysis-list">
-                    {% for action in analysis.actions %}
-                        <li>{{ action }}</li>
-                    {% endfor %}
-                </ol>
-            </section>
-
-            <section class="analysis-block">
-                <span class="block-label">АНАЛИТИКА БАНКА</span>
-                <h3>Позиция Альфа-Банка</h3>
-                <p class="muted">{{ analysis.bank_position }}</p>
-            </section>
-
-            <section class="analysis-block">
-                <span class="block-label">НЕОПРЕДЕЛЁННОСТЬ</span>
-                <h3>Чего пока не знаем</h3>
-
-                <ul class="analysis-list">
-                    {% for unknown in analysis.unknowns %}
-                        <li>{{ unknown }}</li>
-                    {% endfor %}
-                </ul>
-            </section>
+            <div id="analysis-error" class="alert analysis-error" role="alert">
+                <span id="analysis-error-text"></span>
+                <button id="retry-analysis" class="button button-outline" type="button">Повторить</button>
+            </div>
         </section>
     </main>
+<script>
+const loading = document.getElementById("analysis-loading");
+const content = document.getElementById("analysis-content");
+const errorBox = document.getElementById("analysis-error");
+const errorText = document.getElementById("analysis-error-text");
+function setList(id, items, emptyText) {
+    const list = document.getElementById(id); list.replaceChildren();
+    (items.length ? items : [emptyText]).forEach(item => { const li = document.createElement("li"); li.textContent = item; list.appendChild(li); });
+}
+async function loadAnalysis() {
+    loading.hidden = false; content.hidden = true; errorBox.style.display = "none";
+    try {
+        const response = await fetch("{{ url_for('news_analysis', news_id=news.id) }}", {method: "POST"});
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Не удалось выполнить анализ.");
+        const analysis = payload.analysis;
+        document.getElementById("analysis-summary").textContent = analysis.summary;
+        document.getElementById("analysis-reason").textContent = analysis.relevanceReason;
+        document.getElementById("analysis-action").textContent = analysis.recommendedAction;
+        setList("analysis-risks", analysis.potentialRisks, "Риски не указаны.");
+        setList("analysis-opportunities", analysis.potentialOpportunities, "Возможности не указаны.");
+        content.hidden = false;
+    } catch (error) { errorText.textContent = error.message; errorBox.style.display = "block"; }
+    finally { loading.hidden = true; }
+}
+document.getElementById("retry-analysis").addEventListener("click", loadAnalysis);
+loadAnalysis();
+</script>
 </body>
 </html>
