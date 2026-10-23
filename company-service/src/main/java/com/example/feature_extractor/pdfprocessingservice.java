@@ -1,6 +1,6 @@
 
 package com.example.feature_extractor;
-
+import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
@@ -24,8 +24,8 @@ public class pdfprocessingservice {
     private final TransactionTemplate transaction;
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(60)).build();
-
     private final String apiKey;
+
 
     private static final String API =
             "https://changellenge.up.railway.app/v1/chat/completions";

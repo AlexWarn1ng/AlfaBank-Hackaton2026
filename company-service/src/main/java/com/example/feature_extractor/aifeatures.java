@@ -75,4 +75,5 @@ public class aifeatures {
     public void setGlobalImportance(Integer globalImportance) {
         this.globalImportance = globalImportance;
     }
+
 }

@@ -7,8 +7,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Map;
 
-public interface personcompanylinks_repository
-        extends JpaRepository<personcompanylinks, Long> {
+public interface personcompanylinks_repository extends JpaRepository<personcompanylinks, Long> {
 
     List<personcompanylinks> findBySyntheticF(String syntheticF);
 
@@ -17,6 +16,14 @@ public interface personcompanylinks_repository
     List<personcompanylinks> findByCityName(String cityName);
 
     List<personcompanylinks> findByRcName(String rcName);
+
+    @Query(value = """
+    SELECT DISTINCT synthetic_u
+    FROM person_company_links
+    WHERE synthetic_f = :fid
+      AND synthetic_u IS NOT NULL
+    """, nativeQuery = true)
+    List<String> getCompanyIdsByPerson(@Param("fid") String fid);
 
     @Query(value = """
     WITH persons AS (
