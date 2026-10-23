@@ -4,7 +4,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -38,23 +37,13 @@ public class endpointcontroller {
     @GetMapping("/news/{fid}/{position}")
     public ResponseEntity<Object> getNews(@PathVariable String fid, @PathVariable String position) {
         try {
-            List<Long> newsIds = newsService.getNewsIds(fid, position);
+            List<Long> newsIds = newsService.getNews(fid, position);
             return ResponseEntity.ok(Map.of("ID", newsIds));
         }
         catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
-    }
-
-    @PostMapping("/news/get")
-    public ResponseEntity<Map<String, Object>> getNews(@RequestBody String ids) {
-
-        List<Long> newsIds = Arrays.stream(ids.trim().split("\\s+")).map(Long::parseLong).toList();
-
-        Map<String, Object> result = newsService.getNews(newsIds);
-
-        return ResponseEntity.ok(result);
     }
 
 

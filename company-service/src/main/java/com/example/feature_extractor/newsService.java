@@ -7,8 +7,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class newsService {
@@ -32,7 +33,7 @@ public class newsService {
         this.aifeaturesrepository = aifeaturesrepository;
     }
 
-    public List<Long> getNewsIds(String fid, String position) {
+    public List<Long> getNews(String fid, String position) {
         List<String> companyIds = linksRepository.getCompanyIdsByPerson(fid);
         if(companyIds.isEmpty()){
             throw new RuntimeException("Can not find your company");
@@ -50,22 +51,4 @@ public class newsService {
         return relevantNewsIds;
 
     }
-
-    public Map<String, Object> getNews(List<Long> ids) {
-
-        List<aifeatures> news = aifeaturesrepository.findAllById(ids);
-        Set<Long> foundIds = news.stream().map(aifeatures::getId).collect(Collectors.toSet());
-        List<Long> notFoundIds = ids.stream().filter(id -> !foundIds.contains(id)).distinct().toList();
-
-        List<Map<String, Object>> result = news.stream().map(item -> {
-            Map<String, Object> obj = new LinkedHashMap<>();
-            obj.put("id", item.getId());
-            obj.put("title", item.getTitle());
-            obj.put("text", item.getText());
-            return obj;
-        }).toList();
-
-        return Map.of("news", result, "notFoundIds", notFoundIds);
-    }
-
 }
