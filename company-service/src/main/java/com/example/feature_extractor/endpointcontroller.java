@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -15,11 +16,13 @@ public class endpointcontroller {
     private final newsService newsService;
     private final CompanyService companyservice;
     private final pdfprocessingservice pdfService;
+    private final userService userservice;
 
-    public endpointcontroller(CompanyService service, pdfprocessingservice pdfService, newsService newsService) {
+    public endpointcontroller(CompanyService service, pdfprocessingservice pdfService, newsService newsService,userService userservice) {
         this.companyservice = service;
         this.pdfService = pdfService;
         this.newsService = newsService;
+        this.userservice = userservice;
     }
 
     @PostMapping(value = "/upload-pdf", consumes = "application/pdf")
@@ -64,5 +67,9 @@ public class endpointcontroller {
         return ResponseEntity.ok(newsService.getNewsRss());
     }
 
+    @GetMapping("/analysis-context/users/{userId}")
+    public Map<String, Object> getAnalysisContext(@PathVariable UUID userId) {
+        return userservice.getAnalysisContext(userId);
+    }
 
 }
