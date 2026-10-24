@@ -101,7 +101,7 @@ def get_news_by_ids(ids):
 
 def analyze_news(news, user):
     response = requests.post(
-        f"{NEWS_ANALYZER_URL}/api/analysis/relevance",
+        f"{NEWS_ANALYZER_URL}/api/analysis",
         json={
             "userId": user["id"],
             "newsId": news["id"],

@@ -28,6 +28,7 @@ services:
       - "5001:8080"
     environment:
       ASPNETCORE_HTTP_PORTS: "8080"
+      COMPANY_SERVICE_URL: http://company-service:8888
       AI_API_KEY: ${AI_API_KEY:?Set AI_API_KEY in .env}
     restart: unless-stopped
 
