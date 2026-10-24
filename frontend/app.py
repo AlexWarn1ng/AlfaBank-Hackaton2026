@@ -99,41 +99,41 @@ def get_news_by_ids(ids):
     return [by_id[i] for i in ids if i in by_id]
 
 
-def analyze_news(news_id, user):
+def analyze_news(news, user):
     response = requests.post(
         f"{NEWS_ANALYZER_URL}/api/analysis/relevance",
         json={
-            "userId": user["id"],
-            "newsId": news_id,
+            "newsTitle": news["title"],
+            "newsText": news["text"],
+            "userRole": ROLES[user["role"]],
+            "companyName": "",
+            "industry": "",
+            "businessGoals": "",
+            "interests": "",
         },
         timeout=60,
     )
     response.raise_for_status()
     analysis = response.json()["analysis"]
-
     if isinstance(analysis, str):
         text = analysis.strip()
         if text.startswith("```") and text.endswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
         analysis = json.loads(text)
-
     if not isinstance(analysis, dict):
         raise ValueError("Invalid analysis")
-
     for field in ("summary", "relevanceReason", "recommendedAction"):
         if not isinstance(analysis.get(field), str):
             raise ValueError("Invalid analysis text")
-
     for field in ("potentialRisks", "potentialOpportunities"):
         if not isinstance(analysis.get(field), list) or any(
                 not isinstance(item, str) for item in analysis[field]):
             raise ValueError("Invalid analysis list")
-
     return analysis
 
 
-def analysis_cache_key(news_id, user):
-    source = f"{news_id}\n{user['id']}\n{user['role']}\n{user['f_uid']}"
+def analysis_cache_key(news, user):
+    source = f"{news['id']}\n{user['role']}\n{news['text']}"
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
@@ -171,14 +171,14 @@ def get_current_user():
         return None
     with get_db_connection() as connection:
         row = connection.execute(
-            "SELECT id, login, f_uid, role FROM public.users WHERE id = %s",
+            "SELECT id, name, login, f_uid, role FROM public.users WHERE id = %s",
             (user_id,),
         ).fetchone()
     if not row:
         return None
     return {
         "id": str(row["id"]),
-        "name": row["login"],
+        "name": row["name"],
         "email": row["login"],
         "f_uid": row["f_uid"],
         "role": row["role"],
@@ -234,10 +234,10 @@ def register():
         with get_db_connection() as connection:
             connection.execute(
                 """
-                INSERT INTO public.users (id, login, password_hash, f_uid, role)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO public.users (id, name, login, password_hash, f_uid, role)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (new_user_id, email, generate_password_hash(password), f_uid, role),
+                (new_user_id, name, email, generate_password_hash(password), f_uid, role),
             )
     except UniqueViolation:
         return show_auth("Этот email уже зарегистрирован.", 409)
@@ -333,13 +333,15 @@ def news_analysis(news_id):
     try:
         if news_id not in get_news_ids(user):
             abort(404)
-        cache_key = analysis_cache_key(news_id, user)
+        items = get_news_by_ids([news_id])
+        if not items:
+            abort(404)
+        news = items[0]
+        cache_key = analysis_cache_key(news, user)
         analysis = get_cached_analysis(cache_key)
-
         if analysis is None:
-            analysis = analyze_news(news_id, user)
+            analysis = analyze_news(news, user)
             save_cached_analysis(cache_key, analysis)
-
         return jsonify(analysis=analysis)
     except ServiceError as exc:
         return jsonify(error=str(exc)), 400
