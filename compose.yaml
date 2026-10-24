@@ -8,6 +8,11 @@ services:
     environment:
       NEWS_ANALYZER_URL: http://news-analyzer:8080
       COMPANY_SERVICE_URL: http://company-service:8888
+      POSTGRES_HOST: ${POSTGRES_HOST:?Set POSTGRES_HOST in .env}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - frontend-data:/app/data
     depends_on:
