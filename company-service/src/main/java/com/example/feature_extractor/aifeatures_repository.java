@@ -22,6 +22,9 @@ public interface aifeatures_repository extends JpaRepository<aifeatures, Long> {
             "OR f.globalImportance > 80")
     List<Long> findMatchingNewsIds(@Param("financeVal") int financeVal, @Param("businessVal") int businessVal);
 
+    @Query("SELECT a.guid FROM aifeatures a WHERE a.guid IS NOT NULL")
+    List<String> findAllGuids();
+
     List<aifeatures> findAllByIdIn(List<Long> ids);
 
 }

@@ -57,5 +57,12 @@ public class endpointcontroller {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/news/rss/import")
+    public ResponseEntity<Map<String, Object>> importRss()
+            throws Exception {
+
+        return ResponseEntity.ok(newsService.getNewsRss());
+    }
+
 
 }

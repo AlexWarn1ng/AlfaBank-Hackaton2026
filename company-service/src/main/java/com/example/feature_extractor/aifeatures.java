@@ -26,8 +26,16 @@ public class aifeatures {
     @Column(name = "global_importance")
     private Integer globalImportance;
 
+    @Column(name = "guid", columnDefinition = "TEXT")
+    private String guid;
     public aifeatures() {}
+    public String getGuid() {
+        return guid;
+    }
 
+    public void setGuid(String guid) {
+        this.guid = guid;
+    }
     public Long getId() {
         return id;
     }
