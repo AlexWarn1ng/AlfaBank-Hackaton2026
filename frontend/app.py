@@ -103,13 +103,8 @@ def analyze_news(news, user):
     response = requests.post(
         f"{NEWS_ANALYZER_URL}/api/analysis/relevance",
         json={
-            "newsTitle": news["title"],
-            "newsText": news["text"],
-            "userRole": ROLES[user["role"]],
-            "companyName": "",
-            "industry": "",
-            "businessGoals": "",
-            "interests": "",
+            "userId": user["id"],
+            "newsId": news["id"],
         },
         timeout=60,
     )
