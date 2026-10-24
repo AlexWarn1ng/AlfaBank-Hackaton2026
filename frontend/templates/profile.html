@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Профиль - Альфа Новости</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="feed-page">
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('feed') }}">
+            <span class="brand-icon">А</span>
+            <span>альфа новости</span>
+        </a>
+        <div class="header-user">
+            <span class="user-name">{{ user.name }}</span>
+            <form method="post" action="{{ url_for('auth.logout') }}">
+                <button class="button button-outline" type="submit">Выйти</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="profile-layout">
+        <a class="back-link" href="{{ url_for('feed') }}">← К новостям</a>
+        <section class="profile-card">
+            <span class="eyebrow">ВАШ ПРОФИЛЬ</span>
+            <h1>Настройки профиля</h1>
+            <p class="muted">Эти данные используются для персонального подбора новостей.</p>
+
+            {% if error %}
+                <div class="alert" role="alert">{{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="profile-message profile-message-success" role="status">{{ success }}</div>
+            {% endif %}
+
+            <form class="profile-form" method="post" action="{{ url_for('profile.update_profile') }}">
+                <div class="field">
+                    <label for="profile-name">Имя</label>
+                    <input id="profile-name" name="name" type="text" value="{{ user.name }}" maxlength="255" required>
+                </div>
+                <div class="field">
+                    <label for="profile-email">Email</label>
+                    <input id="profile-email" name="email" type="email" value="{{ user.email }}"
+                           maxlength="255" autocomplete="email" required>
+                </div>
+                <div class="field">
+                    <label for="profile-f-uid">ID клиента (F_uid)</label>
+                    <input id="profile-f-uid" name="f_uid" type="text" value="{{ user.f_uid }}" maxlength="100" required>
+                </div>
+                <div class="field">
+                    <label for="profile-role">Должность</label>
+                    <select id="profile-role" name="role" required>
+                        {% for code, title in roles.items() %}
+                            <option value="{{ code }}" {% if code == user.role %}selected{% endif %}>{{ title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="button button-primary" type="submit">Сохранить изменения</button>
+            </form>
+
+            <section class="password-section">
+                <h2>Смена пароля</h2>
+                <form class="profile-form" method="post" action="{{ url_for('profile.update_password') }}">
+                    <div class="field">
+                        <label for="current-password">Текущий пароль</label>
+                        <input id="current-password" name="current_password" type="password" autocomplete="current-password" required>
+                    </div>
+                    <div class="field">
+                        <label for="new-password">Новый пароль</label>
+                        <input id="new-password" name="new_password" type="password" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <div class="field">
+                        <label for="password-repeat">Повторите новый пароль</label>
+                        <input id="password-repeat" name="password_repeat" type="password" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <button class="button button-outline" type="submit">Изменить пароль</button>
+                </form>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

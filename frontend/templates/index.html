@@ -58,14 +58,14 @@
                         type="radio"
                         name="auth-tab"
                         id="tab-login"
-                        {% if request.endpoint != 'register' %}checked{% endif %}
+                        {% if request.endpoint != 'auth.register' %}checked{% endif %}
                     >
                     <input
                         class="tab-radio"
                         type="radio"
                         name="auth-tab"
                         id="tab-register"
-                        {% if request.endpoint == 'register' %}checked{% endif %}
+                        {% if request.endpoint == 'auth.register' %}checked{% endif %}
                     >
 
                     <div class="auth-tabs">
