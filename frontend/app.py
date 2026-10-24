@@ -2,12 +2,15 @@ import json
 import hashlib
 import secrets
 import sqlite3
+import os
 from pathlib import Path
 from threading import Lock
 from uuid import uuid4
 from urllib.parse import quote
 import requests
-import os
+import psycopg
+from psycopg.rows import dict_row
+from psycopg.errors import UniqueViolation
 
 from flask import Flask, render_template, request, redirect, session, abort, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -16,9 +19,7 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
-USERS_FILE = DATA_DIR / "users.json"
 ANALYSIS_CACHE_FILE = DATA_DIR / "analysis_cache.sqlite3"
-users_lock = Lock()
 analysis_cache_lock = Lock()
 DATA_DIR.mkdir(exist_ok=True)
 
@@ -40,16 +41,18 @@ ROLES = {
     "treasurer": "Руководитель казначейства",
 }
 
-def load_users():
-    # До первой регистрации файла может не быть.
-    if not USERS_FILE.exists():
-        return []
-
-    # Загружаем пользователей для входа и регистрации.
-    with USERS_FILE.open("r", encoding="utf-8") as file:
-        return json.load(file)
-
 NEWS_ANALYZER_URL = os.getenv("NEWS_ANALYZER_URL", "http://localhost:5001").rstrip("/")
+
+
+def get_db_connection():
+    return psycopg.connect(
+        host=os.environ["POSTGRES_HOST"],
+        port=os.getenv("POSTGRES_PORT", "5432"),
+        dbname=os.environ["POSTGRES_DB"],
+        user=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
+        row_factory=dict_row,
+    )
 
 
 def get_news_ids(user):
@@ -96,41 +99,41 @@ def get_news_by_ids(ids):
     return [by_id[i] for i in ids if i in by_id]
 
 
-def analyze_news(news, user):
+def analyze_news(news_id, user):
     response = requests.post(
         f"{NEWS_ANALYZER_URL}/api/analysis/relevance",
         json={
-            "newsTitle": news["title"],
-            "newsText": news["text"],
-            "userRole": ROLES[user["role"]],
-            "companyName": "",
-            "industry": "",
-            "businessGoals": "",
-            "interests": "",
+            "userId": user["id"],
+            "newsId": news_id,
         },
         timeout=60,
     )
     response.raise_for_status()
     analysis = response.json()["analysis"]
+
     if isinstance(analysis, str):
         text = analysis.strip()
         if text.startswith("```") and text.endswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
         analysis = json.loads(text)
+
     if not isinstance(analysis, dict):
         raise ValueError("Invalid analysis")
+
     for field in ("summary", "relevanceReason", "recommendedAction"):
         if not isinstance(analysis.get(field), str):
             raise ValueError("Invalid analysis text")
+
     for field in ("potentialRisks", "potentialOpportunities"):
         if not isinstance(analysis.get(field), list) or any(
                 not isinstance(item, str) for item in analysis[field]):
             raise ValueError("Invalid analysis list")
+
     return analysis
 
 
-def analysis_cache_key(news, user):
-    source = f"{news['id']}\n{user['role']}\n{news['text']}"
+def analysis_cache_key(news_id, user):
+    source = f"{news_id}\n{user['id']}\n{user['role']}\n{user['f_uid']}"
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
@@ -162,29 +165,24 @@ def save_cached_analysis(cache_key, analysis):
         )
 
 
-def save_users(users):
-    temporary_file = USERS_FILE.with_suffix(".tmp")
-
-    with temporary_file.open("w", encoding="utf-8") as file:
-        json.dump(users, file, ensure_ascii=False, indent=4)
-
-    temporary_file.replace(USERS_FILE)
-
-
 def get_current_user():
     user_id = session.get("user_id")
-
     if not user_id:
         return None
-
-    with users_lock:
-        users = load_users()
-
-    for user in users:
-        if user["id"] == user_id:
-            return user
-
-    return None
+    with get_db_connection() as connection:
+        row = connection.execute(
+            "SELECT id, login, f_uid, role FROM public.users WHERE id = %s",
+            (user_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": str(row["id"]),
+        "name": row["login"],
+        "email": row["login"],
+        "f_uid": row["f_uid"],
+        "role": row["role"],
+    }
 
 
 def show_auth(error=None, status=200):
@@ -231,29 +229,24 @@ def register():
         app.logger.exception("Could not validate F_uid")
         return show_auth("Не удалось проверить ID клиента. Попробуйте позже.", 503)
 
-    password_hash = generate_password_hash(password)
-
-    with users_lock:
-        users = load_users()
-
-        for user in users:
-            if user["email"] == email:
-                return show_auth("Этот email уже зарегистрирован.", 409)
-
-        new_user = {
-            "id": str(uuid4()),
-            "name": name,
-            "email": email,
-            "password_hash": password_hash,
-            "f_uid": f_uid,
-            "role": role,
-        }
-
-        users.append(new_user)
-        save_users(users)
+    new_user_id = str(uuid4())
+    try:
+        with get_db_connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO public.users (id, login, password_hash, f_uid, role)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (new_user_id, email, generate_password_hash(password), f_uid, role),
+            )
+    except UniqueViolation:
+        return show_auth("Этот email уже зарегистрирован.", 409)
+    except psycopg.Error:
+        app.logger.exception("Could not register user")
+        return show_auth("Не удалось сохранить пользователя. Попробуйте позже.", 503)
 
     session.clear()
-    session["user_id"] = new_user["id"]
+    session["user_id"] = new_user_id
 
     return redirect("/feed")
 
@@ -263,15 +256,20 @@ def login():
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
 
-    with users_lock:
-        users = load_users()
+    try:
+        with get_db_connection() as connection:
+            user = connection.execute(
+                "SELECT id, password_hash FROM public.users WHERE login = %s",
+                (email,),
+            ).fetchone()
+    except psycopg.Error:
+        app.logger.exception("Could not log in user")
+        return show_auth("Не удалось выполнить вход. Попробуйте позже.", 503)
 
-    for user in users:
-        if user["email"] == email:
-            if check_password_hash(user["password_hash"], password):
-                session.clear()
-                session["user_id"] = user["id"]
-                return redirect("/feed")
+    if user and check_password_hash(user["password_hash"], password):
+        session.clear()
+        session["user_id"] = str(user["id"])
+        return redirect("/feed")
 
     return show_auth("Неверный email или пароль.", 401)
 
@@ -335,15 +333,13 @@ def news_analysis(news_id):
     try:
         if news_id not in get_news_ids(user):
             abort(404)
-        items = get_news_by_ids([news_id])
-        if not items:
-            abort(404)
-        news = items[0]
-        cache_key = analysis_cache_key(news, user)
+        cache_key = analysis_cache_key(news_id, user)
         analysis = get_cached_analysis(cache_key)
+
         if analysis is None:
-            analysis = analyze_news(news, user)
+            analysis = analyze_news(news_id, user)
             save_cached_analysis(cache_key, analysis)
+
         return jsonify(analysis=analysis)
     except ServiceError as exc:
         return jsonify(error=str(exc)), 400
