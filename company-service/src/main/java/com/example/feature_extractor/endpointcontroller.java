@@ -59,6 +59,9 @@ public class endpointcontroller {
 
             return ResponseEntity.ok(Map.of("ID", newsIds));
         }
+        catch (org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
+        }
         catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         }

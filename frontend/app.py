@@ -5,8 +5,9 @@ import requests
 from flask import Flask, abort, jsonify, redirect, render_template, session
 
 from core import (
+    get_feed, get_article, invalidate_feed_cache,
     ROLES, ServiceError, analysis_cache_key, analyze_news, get_cached_analysis,
-    get_current_user, get_news_by_ids, get_news_ids, save_cached_analysis,
+    get_current_user, save_cached_analysis,
 )
 from profile import profile_bp
 from reg import auth_bp
@@ -39,7 +40,7 @@ def may_open_news(user, news_id):
     if session.get("visible_news_scope") == _feed_scope(user):
         return news_id in session.get("visible_news_ids", [])
     # Support a direct URL in a fresh session. Do not accept arbitrary IDs.
-    ids = get_news_ids(user)
+    ids = [item["id"] for item in get_feed(user)["news"]]
     remember_visible_news(user, ids)
     return news_id in ids
 
@@ -52,11 +53,11 @@ def feed():
         return redirect("/")
     error, news, status = None, [], 200
     try:
-        news = get_news_by_ids(get_news_ids(user))
+        news = get_feed(user)["news"]
         remember_visible_news(user, [item["id"] for item in news])
     except ServiceError as exc:
         error, status = str(exc), 400
-    except (requests.RequestException, ValueError, KeyError, TypeError):
+    except (requests.RequestException, ValueError, KeyError, TypeError, sqlite3.Error):
         app.logger.exception("Could not load feed")
         error, status = "Не удалось загрузить новости. Попробуйте обновить страницу позже.", 503
     read_news_ids = {
@@ -69,6 +70,15 @@ def feed():
     ), status
 
 
+@app.post("/feed/refresh")
+def refresh_feed():
+    user = get_current_user()
+    if not user:
+        return redirect("/")
+    invalidate_feed_cache(user)
+    return redirect("/feed")
+
+
 @app.get("/news/<int:news_id>")
 def news_detail(news_id):
     user = get_current_user()
@@ -77,10 +87,10 @@ def news_detail(news_id):
     try:
         if not may_open_news(user, news_id):
             abort(404)
-        items = get_news_by_ids([news_id])
+        items = get_article(user, news_id)
     except ServiceError as exc:
         return render_template("feed.html", user=user, role=ROLES[user["role"]], news=[], error=str(exc)), 400
-    except (requests.RequestException, ValueError, KeyError, TypeError):
+    except (requests.RequestException, ValueError, KeyError, TypeError, sqlite3.Error):
         app.logger.exception("Could not load article")
         return render_template("feed.html", user=user, role=ROLES[user["role"]], news=[], error="Не удалось загрузить новость. Попробуйте позже."), 503
     if not items:
@@ -99,7 +109,7 @@ def news_analysis(news_id):
     try:
         if not may_open_news(user, news_id):
             abort(404)
-        items = get_news_by_ids([news_id])
+        items = get_article(user, news_id)
         if not items:
             abort(404)
         news = items[0]

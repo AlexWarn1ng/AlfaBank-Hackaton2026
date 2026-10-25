@@ -4,7 +4,7 @@ from psycopg.errors import UniqueViolation
 from flask import Blueprint, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from core import ROLES, ServiceError, get_current_user, get_db_connection, get_news_ids, is_valid_email
+from core import invalidate_feed_cache, ROLES, ServiceError, get_current_user, get_db_connection, get_news_ids, is_valid_email
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -74,6 +74,8 @@ def update_profile():
     except psycopg.Error:
         session["profile_error"] = "Не удалось сохранить профиль. Попробуйте позже."
         return profile_redirect()
+    if feed_settings_changed:
+        invalidate_feed_cache(user)
     session["profile_success"] = "Профиль обновлён."
     session.pop("profile_draft", None)
     return profile_redirect()

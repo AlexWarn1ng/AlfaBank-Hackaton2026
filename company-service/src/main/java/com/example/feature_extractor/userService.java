@@ -31,14 +31,10 @@ public class userService {
                 ? List.of()
                 : linksRepository.findBySyntheticF(fId);
 
-        List<String> companyIds = links.stream()
-                .map(personcompanylinks::getSyntheticU)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        List<String> companyIds = fId == null ? List.of()
+                : linksRepository.getCompanyIdsByPerson(fId);
 
-        // Должность берётся из users.role
-        String position = user.getRole();
+        String position = JobRoles.normalize(user.getRole());
 
         // По должности из users ищем только веса
         Optional<jobtitle> job = jobtitlerepository.findByPosition(position);
