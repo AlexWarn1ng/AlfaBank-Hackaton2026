@@ -8,9 +8,10 @@
           href="{{ url_for('static', filename='style.css') }}">
     <style>
         .analysis-loading { display: flex; align-items: center; gap: 12px; padding: 24px 0; }
-        .analysis-loading[hidden] {display: none;}
+        .analysis-loading[hidden] {    display: none;}
         .spinner { width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #ef3124; border-radius: 50%; animation: spin .8s linear infinite; }
         .analysis-error { display: none; }
+        .analysis-evidence { font-size: .85rem; color: #666; margin-top: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -23,7 +24,7 @@
         </a>
 
         <div class="header-user">
-            <span class="user-name">{{ user.name }}</span>
+            <a class="user-name" href="{{ url_for('profile.profile_page') }}">{{ user.name }}</a>
 
             <form method="post" action="/logout">
                 <button class="button button-outline" type="submit">
@@ -44,7 +45,7 @@
 
         <section class="analysis-section">
             <div class="feed-heading">
-                <div><h2>Подробный разбор</h2><p class="muted">{{ role }}</p></div>
+                <div><h2>Подробный разбор</h2></div>
             </div>
             <div id="analysis-loading" class="analysis-loading">
                 <span class="spinner" aria-hidden="true"></span><span>Готовим анализ новости...</span>
@@ -56,20 +57,30 @@
                 </div>
                 <div class="analysis-grid">
                     <section class="analysis-block">
-                        <h3>Риски</h3>
-                        <ul id="analysis-risks" class="analysis-list">
-                            <li>Загружаем...</li>
-                        </ul>
-                    </section>
-                    <section class="analysis-block">
-                        <h3>Возможности</h3>
+                        <h3>Возможности:</h3>
                         <ul id="analysis-opportunities" class="analysis-list">
                             <li>Загружаем...</li>
                         </ul>
                     </section>
+                    <section class="analysis-block">
+                        <h3>Риски:</h3>
+                        <ul id="analysis-risks" class="analysis-list">
+                            <li>Загружаем...</li>
+                        </ul>
+                    </section>
                 </div>
+                <section class="analysis-block alfa-analysis-block">
+                    <span class="block-label">АНАЛИТИКА АЛЬФА-БАНКА</span>
+                    <p id="alfa-analysis-text">Аналитика Альфа-Банка пока подключается.</p>
+                    <ul id="alfa-analysis-recommendations" class="analysis-list"></ul>
+                    <div id="bank-perspective-sources" class="analysis-evidence"></div>
+                </section>
                 <section class="analysis-block">
-                    <h3>Что можно сделать</h3>
+                    <h3>Подтверждающие источники и выводы</h3>
+                    <ul id="analysis-claims" class="analysis-list"></ul>
+                </section>
+                <section class="analysis-block">
+                    <h3>Что можно сделать?</h3>
                     <p id="analysis-action"></p>
                 </section>
             </div>
@@ -86,7 +97,8 @@ const errorBox = document.getElementById("analysis-error");
 const errorText = document.getElementById("analysis-error-text");
 function setList(id, items, emptyText) {
     const list = document.getElementById(id); list.replaceChildren();
-    (items.length ? items : [emptyText]).forEach(item => { const li = document.createElement("li"); li.textContent = item; list.appendChild(li); });
+    const values = Array.isArray(items) && items.length ? items : (emptyText ? [emptyText] : []);
+    values.forEach(item => { const li = document.createElement("li"); li.textContent = item; list.appendChild(li); });
 }
 async function loadAnalysis() {
     loading.hidden = false; content.hidden = true; errorBox.style.display = "none";
@@ -100,6 +112,38 @@ async function loadAnalysis() {
         document.getElementById("analysis-action").textContent = analysis.recommendedAction;
         setList("analysis-risks", analysis.potentialRisks, "Риски не указаны.");
         setList("analysis-opportunities", analysis.potentialOpportunities, "Возможности не указаны.");
+        const sourceMap = new Map((Array.isArray(payload.sources) ? payload.sources : [])
+            .filter(s => s && typeof s.sourceId === "string")
+            .map(s => [s.sourceId, s]));
+        const describeSource = id => {
+            const source = sourceMap.get(id);
+            return source ? `${source.title || id} (${id})` : `Источник ${id}`;
+        };
+        const bank = analysis.bankPerspective;
+        const bankText = typeof bank === "string" ? bank : bank?.summary;
+        document.getElementById("alfa-analysis-text").textContent =
+            bankText || "Для этой новости подтверждённая позиция банка не найдена.";
+        document.getElementById("bank-perspective-sources").textContent =
+            Array.isArray(bank?.evidenceIds) ? bank.evidenceIds.map(describeSource).join("; ") : "";
+        setList("alfa-analysis-recommendations", [], "");
+        const claims = document.getElementById("analysis-claims");
+        claims.replaceChildren();
+        const typeLabels = {fact: "Факт", inference: "Вывод AI", bank_opinion: "Мнение банка"};
+        (Array.isArray(analysis.claims) ? analysis.claims : []).forEach(claim => {
+            const li = document.createElement("li");
+            const heading = document.createElement("strong");
+            heading.textContent = `${typeLabels[claim.type] || "Вывод"}: `;
+            li.appendChild(heading);
+            li.appendChild(document.createTextNode(claim.statement || ""));
+            const refs = Array.isArray(claim.evidenceIds) ? claim.evidenceIds : [];
+            if (refs.length) {
+                const details = document.createElement("div");
+                details.className = "analysis-evidence";
+                details.textContent = refs.map(describeSource).join("; ");
+                li.appendChild(details);
+            }
+            claims.appendChild(li);
+        });
         content.hidden = false;
     } catch (error) { errorText.textContent = error.message; errorBox.style.display = "block"; }
     finally { loading.hidden = true; }

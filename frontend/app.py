@@ -12,9 +12,36 @@ from profile import profile_bp
 from reg import auth_bp
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)
+# A stable key is required if several Flask workers/containers are used.
+# In production set FLASK_SECRET_KEY in the environment.
+import os
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 app.register_blueprint(auth_bp)
 app.register_blueprint(profile_bp)
+
+
+# The Java feed endpoint runs an LLM-based ranking. Its result may change
+# between the feed request and a click. Keep the IDs actually shown to
+# this authenticated user, instead of re-ranking on every article visit.
+def _feed_scope(user):
+    return [str(user["id"]), user.get("f_uid"), user.get("role")]
+
+
+def remember_visible_news(user, ids):
+    scope = _feed_scope(user)
+    previous = session.get("visible_news_ids", []) if session.get("visible_news_scope") == scope else []
+    valid_ids = [value for value in [*previous, *ids] if type(value) is int and value > 0]
+    session["visible_news_ids"] = list(dict.fromkeys(valid_ids))[-200:]
+    session["visible_news_scope"] = scope
+
+
+def may_open_news(user, news_id):
+    if session.get("visible_news_scope") == _feed_scope(user):
+        return news_id in session.get("visible_news_ids", [])
+    # Support a direct URL in a fresh session. Do not accept arbitrary IDs.
+    ids = get_news_ids(user)
+    remember_visible_news(user, ids)
+    return news_id in ids
 
 
 @app.get("/feed")
@@ -26,6 +53,7 @@ def feed():
     error, news, status = None, [], 200
     try:
         news = get_news_by_ids(get_news_ids(user))
+        remember_visible_news(user, [item["id"] for item in news])
     except ServiceError as exc:
         error, status = str(exc), 400
     except (requests.RequestException, ValueError, KeyError, TypeError):
@@ -47,7 +75,7 @@ def news_detail(news_id):
     if not user:
         return redirect("/")
     try:
-        if news_id not in get_news_ids(user):
+        if not may_open_news(user, news_id):
             abort(404)
         items = get_news_by_ids([news_id])
     except ServiceError as exc:
@@ -69,18 +97,18 @@ def news_analysis(news_id):
     if not user:
         return jsonify(error="Сессия завершена. Войдите снова."), 401
     try:
-        if news_id not in get_news_ids(user):
+        if not may_open_news(user, news_id):
             abort(404)
         items = get_news_by_ids([news_id])
         if not items:
             abort(404)
         news = items[0]
         cache_key = analysis_cache_key(news, user)
-        analysis = get_cached_analysis(cache_key)
-        if analysis is None:
-            analysis = analyze_news(news, user)
-            save_cached_analysis(cache_key, analysis)
-        return jsonify(analysis=analysis)
+        result = get_cached_analysis(cache_key)
+        if result is None:
+            result = analyze_news(news, user)
+            save_cached_analysis(cache_key, result)
+        return jsonify(analysis=result["analysis"], sources=result.get("sources", []))
     except ServiceError as exc:
         return jsonify(error=str(exc)), 400
     except (requests.RequestException, ValueError, KeyError, TypeError, IndexError, sqlite3.Error):

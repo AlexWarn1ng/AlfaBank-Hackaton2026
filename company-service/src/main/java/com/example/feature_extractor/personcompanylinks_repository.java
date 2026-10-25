@@ -18,10 +18,11 @@ public interface personcompanylinks_repository extends JpaRepository<personcompa
     List<personcompanylinks> findByRcName(String rcName);
 
     @Query(value = """
-    SELECT DISTINCT synthetic_u
-    FROM person_company_links
-    WHERE synthetic_f = :fid
-      AND synthetic_u IS NOT NULL
+    SELECT DISTINCT p.synthetic_u
+    FROM person_company_links p
+    JOIN companies c ON c.synthetic_u = p.synthetic_u
+    WHERE p.synthetic_f = :fid
+    ORDER BY p.synthetic_u
     """, nativeQuery = true)
     List<String> getCompanyIdsByPerson(@Param("fid") String fid);
 
