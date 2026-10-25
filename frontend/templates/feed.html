@@ -7,7 +7,7 @@
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="feed-page">
+<body class="feed-page feed-home">
 
     <!-- Шапка и выход из аккаунта -->
     <header class="site-header">
@@ -31,8 +31,7 @@
 
     <main class="feed-layout">
         <aside class="sidebar">
-            <span class="eyebrow">ВАШ ПРОФИЛЬ</span>
-            <h2>{{ user.get('f_uid', 'ID не указан') }}</h2>
+            <span class="eyebrow sidebar-user-name">{{ user.name }}</span>
             <p class="muted">{{ role }}</p>
 
             <nav class="side-nav" aria-label="Основная навигация">
@@ -57,9 +56,7 @@
         <section class="feed-content">
             <div class="feed-heading">
                 <div>
-                    <span class="eyebrow">ПЕРСОНАЛЬНАЯ АНАЛИТИКА</span>
-                    <h1>Ваша лента</h1>
-                    <p class="muted">Новости для вашей роли.</p>
+                    <h1 class="feed-title">Ваша лента</h1>
                 </div>
 
 
@@ -72,9 +69,12 @@
             <!-- Вся карточка является ссылкой на подробный разбор -->
             <div class="news-list">
                 {% for item in news %}
-                    <a class="news-card"
+                    <a class="news-card{% if loop.index <= 3 %} news-card-featured{% endif %}{% if item.id in read_news_ids %} news-card-read{% endif %}"
                        href="{{ url_for('news_detail', news_id=item.id) }}">
 
+                        {% if loop.index <= 3 %}
+                            <span class="news-priority-badge">Важно для вас</span>
+                        {% endif %}
                         <h2>{{ item.title }}</h2>
                         <p class="news-summary">{{ item.text | truncate(240) }}</p>
 

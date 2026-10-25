@@ -4,7 +4,7 @@ from psycopg.errors import UniqueViolation
 from flask import Blueprint, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from core import ROLES, ServiceError, get_current_user, get_db_connection, get_news_ids
+from core import ROLES, ServiceError, get_current_user, get_db_connection, get_news_ids, is_valid_email
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -13,12 +13,19 @@ def profile_redirect():
     return redirect(url_for("profile.profile_page"))
 
 
+def remember_profile_draft(name, email, f_uid, role):
+    session["profile_draft"] = {
+        "name": name, "email": email, "f_uid": f_uid, "role": role,
+    }
+
+
 @profile_bp.get("/profile")
 def profile_page():
     user = get_current_user()
     if not user:
         session.clear()
         return redirect("/")
+    user = {**user, **session.pop("profile_draft", {})}
     return render_template("profile.html", user=user, roles=ROLES,
                            role=ROLES[user["role"]],
                            error=session.pop("profile_error", None),
@@ -35,10 +42,11 @@ def update_profile():
     email = request.form.get("email", "").strip().lower()
     f_uid = request.form.get("f_uid", "").strip()
     role = request.form.get("role", "")
+    remember_profile_draft(name, email, f_uid, role)
     if not all([name, email, f_uid, role]) or role not in ROLES:
         session["profile_error"] = "Заполните все поля и выберите должность."
         return profile_redirect()
-    if "@" not in email:
+    if not is_valid_email(email):
         session["profile_error"] = "Введите корректный email."
         return profile_redirect()
     if len(name) > 255 or len(email) > 255 or len(f_uid) > 100:
@@ -67,6 +75,7 @@ def update_profile():
         session["profile_error"] = "Не удалось сохранить профиль. Попробуйте позже."
         return profile_redirect()
     session["profile_success"] = "Профиль обновлён."
+    session.pop("profile_draft", None)
     return profile_redirect()
 
 

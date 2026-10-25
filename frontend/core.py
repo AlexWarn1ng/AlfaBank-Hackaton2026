@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import sqlite3
 from pathlib import Path
 from threading import Lock
@@ -34,6 +35,10 @@ NEWS_ANALYZER_URL = os.getenv("NEWS_ANALYZER_URL", "http://localhost:5001").rstr
 
 class ServiceError(Exception):
     pass
+
+
+def is_valid_email(email):
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)) and len(email) <= 255
 
 
 def get_db_connection():

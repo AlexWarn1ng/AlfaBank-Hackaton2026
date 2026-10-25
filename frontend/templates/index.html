@@ -83,21 +83,21 @@
                                 name="email"
                                 type="email"
                                 placeholder="name@company.ru"
+                                pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+                                title="Укажите email с доменом, например name@company.ru"
                                 autocomplete="username"
+                                value="{{ form_data.get('email', '') if request.endpoint == 'auth.login' else '' }}"
                                 required
                             >
                         </div>
 
                         <div class="field">
                             <label for="login-password">Пароль</label>
-                            <input
-                                id="login-password"
-                                name="password"
-                                type="password"
-                                placeholder="Введите пароль"
-                                autocomplete="current-password"
-                                required
-                            >
+                            <div class="password-field">
+                                <input id="login-password" name="password" type="password"
+                                       placeholder="Введите пароль" autocomplete="current-password" required>
+                                <button class="password-toggle" type="button" data-password-toggle="login-password">Показать</button>
+                            </div>
                         </div>
 
                         <button class="button button-primary" type="submit">
@@ -115,6 +115,7 @@
                                 name="name"
                                 placeholder="Как к вам обращаться?"
                                 autocomplete="name"
+                                value="{{ form_data.get('name', '') }}"
                                 required
                             >
                         </div>
@@ -126,28 +127,28 @@
                                 name="email"
                                 type="email"
                                 placeholder="name@company.ru"
+                                pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+                                title="Укажите email с доменом, например name@company.ru"
                                 autocomplete="username"
+                                value="{{ form_data.get('email', '') if request.endpoint == 'auth.register' else '' }}"
                                 required
                             >
                         </div>
 
                         <div class="field">
                             <label for="register-password">Пароль</label>
-                            <input
-                                id="register-password"
-                                name="password"
-                                type="password"
-                                placeholder="Минимум 8 символов"
-                                minlength="8"
-                                autocomplete="new-password"
-                                required
-                            >
+                            <div class="password-field">
+                                <input id="register-password" name="password" type="password"
+                                       placeholder="Минимум 8 символов" minlength="8"
+                                       autocomplete="new-password" required>
+                                <button class="password-toggle" type="button" data-password-toggle="register-password">Показать</button>
+                            </div>
                         </div>
 
                         <div class="field">
                             <label for="f_uid">ID клиента (F_uid)</label>
                             <input id="f_uid" name="f_uid" required
-                                   value="{{ request.form.get('f_uid', '') }}"
+                                   value="{{ form_data.get('f_uid', '') }}"
                                    placeholder="Введите ваш F_uid">
                         </div>
 
@@ -157,7 +158,7 @@
                                 <option value="">Выберите должность</option>
 
                                 {% for role_id, role_name in roles.items() %}
-                                    <option value="{{ role_id }}">
+                                    <option value="{{ role_id }}" {% if form_data.get('role') == role_id %}selected{% endif %}>
                                         {{ role_name }}
                                     </option>
                                 {% endfor %}
@@ -172,5 +173,15 @@
             </div>
         </section>
     </main>
+    <script>
+        document.querySelectorAll("[data-password-toggle]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const input = document.getElementById(button.dataset.passwordToggle);
+                const visible = input.type === "text";
+                input.type = visible ? "password" : "text";
+                button.textContent = visible ? "Показать" : "Скрыть";
+            });
+        });
+    </script>
 </body>
 </html>
