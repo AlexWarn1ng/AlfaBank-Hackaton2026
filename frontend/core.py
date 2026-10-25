@@ -107,10 +107,12 @@ def get_news_by_ids(ids):
 def analyze_news(news, user):
     response = requests.post(
         f"{NEWS_ANALYZER_URL}/api/analysis",
-        json={"userId": user["id"], "newsId": news["id"]}, timeout=60,
+        json={"userId": user["id"], "newsId": news["id"]},
+        timeout=240,
     )
     response.raise_for_status()
-    analysis = response.json()["analysis"]
+    payload = response.json()
+    analysis = payload["analysis"]
     if isinstance(analysis, str):
         text = analysis.strip()
         if text.startswith("```") and text.endswith("```"):
@@ -118,11 +120,14 @@ def analyze_news(news, user):
         analysis = json.loads(text)
     if not isinstance(analysis, dict):
         raise ValueError("Invalid analysis")
-    return analysis
+    sources = payload.get("sources", [])
+    if not isinstance(sources, list):
+        raise ValueError("Invalid sources")
+    return {"analysis": analysis, "sources": sources}
 
 
 def analysis_cache_key(news, user):
-    source = f"{news['id']}\n{user['role']}\n{news['text']}"
+    source = f"analysis-v3\n{user['id']}\n{user.get('f_uid')}\n{user['role']}\n{news['id']}\n{news['text']}"
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 

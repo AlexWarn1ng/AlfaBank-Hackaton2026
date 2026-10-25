@@ -2,6 +2,7 @@ using System.Text.Json;
 using NewsAnalyzer.Clients;
 using NewsAnalyzer.Models;
 using NewsAnalyzer.Services;
+using NewsAnalyzer.Agents;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +24,30 @@ builder.Services.AddHttpClient<AnalysisService>(client =>
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 
+builder.Services.AddHttpClient<AnalysisPlanner>(client =>
+{
+    var url = builder.Configuration["AI_BASE_URL"]
+              ?? "https://changellenge.up.railway.app/v1/";
+
+    client.BaseAddress = new Uri(url.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+
+builder.Services.AddHttpClient<AnalysisValidator>(client =>
+{
+    var url = builder.Configuration["AI_BASE_URL"]
+              ?? "https://changellenge.up.railway.app/v1/";
+
+    client.BaseAddress = new Uri(url.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+
+builder.Services.AddScoped<AgentOrchestrator>();
+
 builder.Services.AddScoped<ContextBuilderService>();
+
+builder.Services.AddScoped<EvidenceCatalogService>();
+builder.Services.AddScoped<EvidenceReferenceValidator>();
 
 var app = builder.Build();
 
@@ -35,9 +59,9 @@ app.MapGet("/", () => new
 
 app.MapPost("/api/analysis", async (
     AnalysisRequest request,
-    ContextBuilderService contextBuilder,
-    AnalysisService analysisService,
+    AgentOrchestrator agent,
     ILogger<Program> logger,
+    EvidenceCatalogService evidenceCatalog,
     CancellationToken ct) =>
 {
     if (request.UserId == Guid.Empty || request.NewsId <= 0)
@@ -50,12 +74,12 @@ app.MapPost("/api/analysis", async (
 
     try
     {
-        var context = await contextBuilder.BuildAsync(
+        var result = await agent.ExecuteAsync(
             request.UserId,
             request.NewsId,
             ct);
 
-        if (context is null)
+        if (result is null)
         {
             return Results.NotFound(new
             {
@@ -63,18 +87,29 @@ app.MapPost("/api/analysis", async (
             });
         }
 
-        var analysis = await analysisService.AnalyzeAsync(
-            context,
-            ct);
+        // Сохраняем прежний контракт с Flask.
+        var catalog = evidenceCatalog.Build(result.Value.State);
+
+        var referencedIds = result.Value.Analysis.Claims
+            .Where(c => c.EvidenceIds is not null)
+            .SelectMany(c => c.EvidenceIds)
+            .Concat(result.Value.Analysis.BankPerspective?.EvidenceIds ?? [])
+            .ToHashSet(StringComparer.Ordinal);
+
+        var sources = catalog
+            .Where(s => referencedIds.Contains(s.SourceId))
+            .Select(s => new { s.SourceId, s.SourceType, s.Title })
+            .ToList();
 
         return Results.Ok(new
         {
-            analysis
+            analysis = result.Value.Analysis,
+            sources
         });
     }
     catch (HttpRequestException ex)
     {
-        logger.LogError(ex, "Ошибка HTTP при анализе новости");
+        logger.LogError(ex, "Ошибка внешнего сервиса");
 
         return Results.Problem(
             "Ошибка обращения к внешнему сервису.",
@@ -82,20 +117,44 @@ app.MapPost("/api/analysis", async (
     }
     catch (JsonException ex)
     {
-        logger.LogError(ex, "Некорректный JSON от AI API");
+        logger.LogError(ex, "Некорректный JSON");
 
         return Results.Problem(
-            "ИИ вернул некорректный JSON.",
+            "Внешний AI-сервис вернул некорректные данные.",
             statusCode: 502);
     }
     catch (InvalidOperationException ex)
     {
-        logger.LogError(ex, "Ошибка конфигурации анализатора");
+        logger.LogError(ex, "Ошибка конфигурации");
 
         return Results.Problem(
             "Ошибка конфигурации анализатора.",
             statusCode: 500);
     }
 });
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/debug/search", async (
+        string query,
+        long? excludeNewsId,
+        CompanyServiceClient client,
+        CancellationToken ct) =>
+    {
+        var news = await client.SearchNewsAsync(
+            query,
+            5,
+            excludeNewsId,
+            ct);
+
+        var opinions = await client.GetBankOpinionsAsync(ct);
+
+        return Results.Ok(new
+        {
+            news.Results,
+            BankOpinions = opinions
+        });
+    });
+}
 
 app.Run();

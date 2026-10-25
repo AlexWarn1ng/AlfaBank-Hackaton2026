@@ -66,4 +66,49 @@ public sealed class CompanyServiceClient(HttpClient http)
         public List<NewsContext> News { get; set; } = [];
         public List<long> NotFoundIds { get; set; } = [];
     }
+    
+    public async Task<NewsSearchResult> SearchNewsAsync(
+        string query,
+        int limit,
+        long? excludeNewsId,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            throw new ArgumentException(
+                "Поисковый запрос не может быть пустым.",
+                nameof(query));
+
+        if (limit is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(limit));
+
+        var request = new
+        {
+            query,
+            limit,
+            excludeNewsId
+        };
+
+        using var response = await http.PostAsJsonAsync(
+            "api/news/search",
+            request,
+            ct);
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+                   .ReadFromJsonAsync<NewsSearchResult>(
+                       cancellationToken: ct)
+               ?? throw new JsonException(
+                   "Java вернула пустой результат поиска.");
+    }
+
+    public async Task<List<BankOpinion>> GetBankOpinionsAsync(
+        CancellationToken ct)
+    {
+        return await http.GetFromJsonAsync<List<BankOpinion>>(
+                   "api/opinions/get",
+                   ct)
+               ?? throw new JsonException(
+                   "Java вернула пустой ответ с аналитикой банка.");
+    }
 }

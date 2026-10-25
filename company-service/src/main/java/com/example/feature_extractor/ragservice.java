@@ -42,12 +42,12 @@ public class ragservice {
     public List<Long> getRelevantNews(String fid, String position)
             throws Exception {
 
-        // 1. Получаем компании сотрудника
+        // 1. Получаем только существующие компании сотрудника
         List<String> companyIds =
                 linksRepository.getCompanyIdsByPerson(fid);
 
         if (companyIds.isEmpty()) {
-            throw new RuntimeException("Company not found");
+            throw new IllegalStateException("No existing companies linked to person: " + fid);
         }
 
         // 2. Получаем должность сотрудника
