@@ -124,11 +124,11 @@ public class pdfprocessingservice {
         transaction.executeWithoutResult(status -> {
             for (JsonNode item : news) {
                 db.update("""
-                    INSERT INTO ai_features
-                    (title, text, finance_importance,
-                     business_importance, global_importance)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
+            INSERT INTO ai_features_alfabankopinion
+            (title, text, finance_importance,
+             business_importance, global_importance)
+            VALUES (?, ?, ?, ?, ?)
+            """,
                         item.get("title").asText(),
                         item.get("text").asText(),
                         item.get("finance").asInt(),

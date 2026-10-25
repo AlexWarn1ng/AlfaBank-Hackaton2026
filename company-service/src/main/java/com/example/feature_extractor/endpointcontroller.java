@@ -17,12 +17,17 @@ public class endpointcontroller {
     private final CompanyService companyservice;
     private final pdfprocessingservice pdfService;
     private final userService userservice;
-
-    public endpointcontroller(CompanyService service, pdfprocessingservice pdfService, newsService newsService,userService userservice) {
+    private final currencyservice currencyservice;
+    private final aifeaturesalfabankopinion_repository opinionRepository;
+    private final ragservice ragservice;
+    public endpointcontroller(ragservice ragservice, CompanyService service,aifeaturesalfabankopinion_repository opinionRepository ,pdfprocessingservice pdfService, newsService newsService,userService userservice, currencyservice currencyservice) {
         this.companyservice = service;
         this.pdfService = pdfService;
         this.newsService = newsService;
         this.userservice = userservice;
+        this.currencyservice = currencyservice;
+        this.opinionRepository = opinionRepository;
+        this.ragservice = ragservice;
     }
 
     @PostMapping(value = "/upload-pdf", consumes = "application/pdf")
@@ -41,13 +46,20 @@ public class endpointcontroller {
     @GetMapping("/news/{fid}/{position}")
     public ResponseEntity<Object> getNews(@PathVariable String fid, @PathVariable String position) {
         try {
-            List<Long> newsIds = newsService.getNewsIds(fid, position);
+            List<Long> newsIds = ragservice.getRelevantNews(fid, position);
+
             return ResponseEntity.ok(Map.of("ID", newsIds));
         }
         catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/opinions/get")
+    public ResponseEntity<List<aifeaturesalfabankopinion>> getOpinions() {
+        return ResponseEntity.ok(
+                opinionRepository.findTop20ByOrderByIdAsc()
+        );
     }
 
     @PostMapping("/news/get")
@@ -60,16 +72,36 @@ public class endpointcontroller {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/news/get/{n}")
+    public ResponseEntity<Map<String, Object>> getNews(@PathVariable int n) {
+        return ResponseEntity.ok(newsService.getFirstNews(n));
+    }
+
     @PostMapping("/news/rss/import")
     public ResponseEntity<Map<String, Object>> importRss()
             throws Exception {
-
         return ResponseEntity.ok(newsService.getNewsRss());
     }
 
     @GetMapping("/analysis-context/users/{userId}")
     public Map<String, Object> getAnalysisContext(@PathVariable UUID userId) {
         return userservice.getAnalysisContext(userId);
+    }
+
+    @PostMapping("/users")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> createUser(@RequestBody UserRequest request) {
+        return userservice.createUser(request);
+    }
+
+    @PatchMapping("/users/{userId}")
+    public Map<String, Object> updateUser(@PathVariable UUID userId, @RequestBody Map<String, String> request) {
+        return userservice.updateUser(userId, request);
+    }
+
+    @GetMapping("/currency")
+    public Map<String, Object> getCurrency(@RequestParam String from, @RequestParam String to) {
+        return currencyservice.getRate(from, to);
     }
 
 }

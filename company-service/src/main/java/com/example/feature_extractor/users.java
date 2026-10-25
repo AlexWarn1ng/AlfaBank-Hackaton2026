@@ -24,7 +24,7 @@ public class users {
     @Column(name = "role")
     private String role;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
     @Column(name = "name")
@@ -59,4 +59,20 @@ public class users {
     public String getName() {
         return name;
     }
+    public void setLogin(String login) {
+        this.login = login;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
 }

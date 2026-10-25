@@ -104,6 +104,24 @@ public class newsService {
         Верни только валидный JSON-массив без Markdown.
         """;
 
+    public Map<String, Object> getFirstNews(int n) {
+        if (n <= 0) {
+            throw new IllegalArgumentException("n must be positive");
+        }
+
+        List<aifeatures> news = aifeaturesrepository.findFirstNews(n);
+
+        List<Map<String, Object>> result = news.stream().map(item -> {
+            Map<String, Object> obj = new LinkedHashMap<>();
+            obj.put("id", item.getId());
+            obj.put("title", item.getTitle());
+            obj.put("text", item.getText());
+            return obj;
+        }).toList();
+
+        return Map.of("news", result);
+    }
+
     public List<Long> getNewsIds(String fid, String position) {
         List<String> companyIds = linksRepository.getCompanyIdsByPerson(fid);
         if(companyIds.isEmpty()){

@@ -25,6 +25,9 @@ public interface aifeatures_repository extends JpaRepository<aifeatures, Long> {
     @Query("SELECT a.guid FROM aifeatures a WHERE a.guid IS NOT NULL")
     List<String> findAllGuids();
 
+    @Query(value = "SELECT * FROM ai_features ORDER BY id ASC LIMIT :n", nativeQuery = true)
+    List<aifeatures> findFirstNews(@Param("n") int n);
+
     List<aifeatures> findAllByIdIn(List<Long> ids);
 
 }
