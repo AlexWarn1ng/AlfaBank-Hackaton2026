@@ -17,7 +17,9 @@
         </a>
 
         <div class="header-user">
-            <span class="user-name">{{ user.name }}</span>
+            <a class="user-name" href="{{ url_for('profile.profile_page') }}">
+                {{ user.name }}
+            </a>
 
             <form method="post" action="/logout">
                 <button class="button button-outline" type="submit">
@@ -34,6 +36,10 @@
             <p class="muted">{{ role }}</p>
 
             <nav class="side-nav" aria-label="Основная навигация">
+                <a class="nav-link" href="{{ url_for('profile.profile_page') }}">
+                    <span class="nav-dot"></span>
+                    Профиль
+                </a>
                 <a class="nav-link active" href="/feed" aria-current="page">
                     <span class="nav-dot"></span>
                     Лента новостей
@@ -72,6 +78,9 @@
                         <h2>{{ item.title }}</h2>
                         <p class="news-summary">{{ item.text | truncate(240) }}</p>
 
+                        {% if item.id in read_news_ids %}
+                            <span class="read-badge">Прочитано</span>
+                        {% endif %}
                         <span class="news-link">
                             Посмотреть разбор →
                         </span>
