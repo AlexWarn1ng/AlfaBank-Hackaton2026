@@ -20,7 +20,8 @@ public class endpointcontroller {
     private final currencyservice currencyservice;
     private final aifeaturesalfabankopinion_repository opinionRepository;
     private final ragservice ragservice;
-    public endpointcontroller(ragservice ragservice, CompanyService service,aifeaturesalfabankopinion_repository opinionRepository ,pdfprocessingservice pdfService, newsService newsService,userService userservice, currencyservice currencyservice) {
+    private final newssearchservice newssearchservice;
+    public endpointcontroller(newssearchservice newssearchservice,ragservice ragservice, CompanyService service,aifeaturesalfabankopinion_repository opinionRepository ,pdfprocessingservice pdfService, newsService newsService,userService userservice, currencyservice currencyservice) {
         this.companyservice = service;
         this.pdfService = pdfService;
         this.newsService = newsService;
@@ -28,6 +29,7 @@ public class endpointcontroller {
         this.currencyservice = currencyservice;
         this.opinionRepository = opinionRepository;
         this.ragservice = ragservice;
+        this.newssearchservice = newssearchservice;
     }
 
     @PostMapping(value = "/upload-pdf", consumes = "application/pdf")
@@ -36,6 +38,13 @@ public class endpointcontroller {
         int count = pdfService.process(pdf);
 
         return Map.of("status", "success", "extracted", count);
+    }
+
+    @PostMapping("/news/search")
+    public Map<String, Object> searchNews(
+            @RequestBody NewsSearchRequest request) {
+        return newssearchservice.search(request.query(), request.limit(), request.excludeNewsId()
+        );
     }
 
     @GetMapping("/company/{uid}")
