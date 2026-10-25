@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sqlite3
+import time
 from pathlib import Path
 from threading import Lock
 from urllib.parse import quote
@@ -74,13 +75,15 @@ def get_news_ids(user):
         raise ServiceError("У этого аккаунта нет F_uid. Создайте новый аккаунт с ID клиента.")
     response = requests.get(
         f"{COMPANY_SERVICE_URL}/api/news/{quote(user['f_uid'], safe='')}/{JAVA_ROLES[user['role']]}",
-        timeout=15,
+        timeout=(5, 260),
     )
+    if response.status_code == 404:
+        raise ServiceError("Человек с таким F_uid не найден. Проверьте ID.")
     if response.status_code == 400:
         message = response.json().get("error")
         if message == "Can not find your company":
             raise ServiceError("Для этого F_uid не найдена связанная компания. Проверьте ID.")
-        if message == "Job Title not Found":
+        if message in {"Job Title not Found", "Job title not found"}:
             raise ServiceError("Должность не найдена в сервисе подбора новостей.")
     response.raise_for_status()
     ids = response.json()["ID"]
@@ -142,3 +145,56 @@ def save_cached_analysis(cache_key, analysis):
     with analysis_cache_lock, sqlite3.connect(ANALYSIS_CACHE_FILE) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS analysis_cache (cache_key TEXT PRIMARY KEY, analysis TEXT NOT NULL)")
         connection.execute("INSERT OR REPLACE INTO analysis_cache (cache_key, analysis) VALUES (?, ?)", (cache_key, json.dumps(analysis, ensure_ascii=False)))
+
+
+FEED_CACHE_TTL = 600
+feed_cache_lock = Lock()
+
+
+def feed_cache_key(user):
+    scope = ["feed-v1", str(user["id"]), user.get("f_uid"), user["role"]]
+    return hashlib.sha256(json.dumps(scope).encode()).hexdigest()
+
+
+def get_cached_feed(user):
+    with feed_cache_lock, sqlite3.connect(ANALYSIS_CACHE_FILE) as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS feed_cache (cache_key TEXT PRIMARY KEY, payload TEXT NOT NULL, expires_at REAL NOT NULL)")
+        row = connection.execute(
+            "SELECT payload FROM feed_cache WHERE cache_key = ? AND expires_at > ?",
+            (feed_cache_key(user), time.time()),
+        ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_cached_feed(user, payload):
+    with feed_cache_lock, sqlite3.connect(ANALYSIS_CACHE_FILE) as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS feed_cache (cache_key TEXT PRIMARY KEY, payload TEXT NOT NULL, expires_at REAL NOT NULL)")
+        connection.execute("DELETE FROM feed_cache WHERE expires_at <= ?", (time.time(),))
+        connection.execute(
+            "INSERT OR REPLACE INTO feed_cache VALUES (?, ?, ?)",
+            (feed_cache_key(user), json.dumps(payload, ensure_ascii=False), time.time() + FEED_CACHE_TTL),
+        )
+
+
+def invalidate_feed_cache(user):
+    with feed_cache_lock, sqlite3.connect(ANALYSIS_CACHE_FILE) as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS feed_cache (cache_key TEXT PRIMARY KEY, payload TEXT NOT NULL, expires_at REAL NOT NULL)")
+        connection.execute("DELETE FROM feed_cache WHERE cache_key = ?", (feed_cache_key(user),))
+
+
+def get_feed(user):
+    cached = get_cached_feed(user)
+    if cached is not None:
+        return cached
+    payload = {"news": get_news_by_ids(get_news_ids(user))}
+    save_cached_feed(user, payload)
+    return payload
+
+
+def get_article(user, news_id):
+    cached = get_cached_feed(user)
+    if cached is not None:
+        for item in cached["news"]:
+            if item["id"] == news_id:
+                return [item]
+    return get_news_by_ids([news_id])

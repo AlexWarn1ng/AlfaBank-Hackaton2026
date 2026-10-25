@@ -101,10 +101,17 @@ app.MapPost("/api/analysis", async (
             .Select(s => new { s.SourceId, s.SourceType, s.Title })
             .ToList();
 
+        var hasCompany = result.Value.State.Context.Companies.Count > 0;
+        const string limitation = "Связанная компания не найдена. Анализ основан на указанной должности и известных данных человека; влияние на конкретную компанию оценить нельзя.";
+        if (!hasCompany)
+            result.Value.Analysis.RelevanceReason = limitation + " " + result.Value.Analysis.RelevanceReason;
+
         return Results.Ok(new
         {
             analysis = result.Value.Analysis,
-            sources
+            sources,
+            hasCompany,
+            contextNotice = hasCompany ? null : limitation
         });
     }
     catch (HttpRequestException ex)
