@@ -13,7 +13,7 @@
             <span>альфа новости</span>
         </a>
         <div class="header-user">
-            <span class="user-name">{{ user.name }}</span>
+            <a class="user-name" href="{{ url_for('profile.profile_page') }}">{{ user.name }}</a>
             <form method="post" action="{{ url_for('auth.logout') }}">
                 <button class="button button-outline" type="submit">Выйти</button>
             </form>
@@ -64,7 +64,10 @@
                 <form class="profile-form" method="post" action="{{ url_for('profile.update_password') }}">
                     <div class="field">
                         <label for="current-password">Текущий пароль</label>
-                        <input id="current-password" name="current_password" type="password" autocomplete="current-password" required>
+                        <div class="password-field">
+                            <input id="current-password" name="current_password" type="password" autocomplete="current-password" required>
+                            <button class="password-toggle" type="button" data-password-toggle="current-password">Показать</button>
+                        </div>
                     </div>
                     <div class="field">
                         <label for="new-password">Новый пароль</label>
@@ -79,5 +82,15 @@
             </section>
         </section>
     </main>
+    <script>
+        document.querySelectorAll("[data-password-toggle]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const input = document.getElementById(button.dataset.passwordToggle);
+                const visible = input.type === "text";
+                input.type = visible ? "password" : "text";
+                button.textContent = visible ? "Показать" : "Скрыть";
+            });
+        });
+    </script>
 </body>
 </html>

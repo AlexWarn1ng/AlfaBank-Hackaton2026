@@ -6,6 +6,13 @@
     --muted: #737780;
     --background: #f5f6f8;
     --border: #e7e8ec;
+
+    /* Сетка ленты: меняем геометрию страницы только здесь */
+    --sidebar-width: 326px;
+    --sidebar-text-inset: 24px;
+    --sidebar-padding-y: 60px;
+    --content-padding-x: 48px;
+    --content-padding-top: 52px;
 }
 
 * {
@@ -49,7 +56,7 @@ p {
 .eyebrow {
     display: block;
     margin-bottom: 14px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 1.8px;
 }
@@ -246,6 +253,27 @@ p {
     outline: 3px solid rgba(239, 49, 36, 0.1);
 }
 
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 92px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: var(--red);
+    font-size: 12px;
+    font-weight: 600;
+    transform: translateY(-50%);
+}
+
 /* Кнопки */
 .button {
     display: inline-flex;
@@ -315,22 +343,66 @@ a:focus-visible {
 }
 
 .user-name {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    background: var(--red);
+    color: white;
     font-size: 14px;
     font-weight: 600;
+}
+
+.user-name:hover {
+    background: var(--red-dark);
+    color: white;
 }
 
 /* Основная сетка ленты */
 .feed-layout {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr);
-    gap: 40px;
-    max-width: 1440px;
-    margin: 0 auto;
-    padding: 40px;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    min-height: calc(100vh - 88px);
 }
 
 .sidebar {
-    padding-top: 8px;
+    padding: var(--sidebar-padding-y) 32px 48px var(--sidebar-text-inset);
+}
+
+.feed-content {
+    min-width: 0;
+    padding: var(--content-padding-top) var(--content-padding-x) 72px;
+}
+
+.feed-home {
+    background: var(--background);
+}
+
+.feed-home .sidebar {
+    background: var(--red);
+}
+
+.feed-home .sidebar,
+.feed-home .sidebar h2,
+.feed-home .sidebar > .muted,
+.feed-home .nav-link {
+    color: white;
+}
+
+.feed-home .nav-link.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.feed-home .nav-dot {
+    background: white;
+}
+
+.feed-title {
+    margin-bottom: 28px;
+    font-size: clamp(42px, 4vw, 56px);
+    letter-spacing: -1.5px;
 }
 
 .sidebar h2 {
@@ -340,7 +412,9 @@ a:focus-visible {
 }
 
 .sidebar > .muted {
-    font-size: 13px;
+    max-width: 245px;
+    font-size: 18px;
+    line-height: 1.4;
 }
 
 .profile-editor {
@@ -440,16 +514,16 @@ a:focus-visible {
 }
 
 .side-nav {
-    margin-top: 32px;
+    margin-top: 16px;
 }
 
 .nav-link {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 15px;
+    padding: 16px 18px;
     border-radius: 11px;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -466,22 +540,23 @@ a:focus-visible {
 }
 
 .sidebar-note {
-    margin-top: 40px;
+    margin-top: 34px;
     padding: 20px;
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
     background: white;
+    color: var(--text);
 }
 
 .sidebar-note strong {
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .sidebar-note p {
-    margin: 10px 0 0;
+    margin: 8px 0 0;
     color: var(--muted);
-    font-size: 12px;
-    line-height: 1.7;
+    font-size: 14px;
+    line-height: 1.55;
 }
 
 /* Заголовок и пустое состояние ленты */
@@ -490,13 +565,13 @@ a:focus-visible {
     align-items: flex-start;
     justify-content: space-between;
     gap: 20px;
-    margin-bottom: 28px;
+    margin-bottom: 32px;
 }
 
 .feed-heading h1 {
-    margin-bottom: 10px;
-    font-size: 36px;
-    letter-spacing: -1.2px;
+    margin: 0;
+    font-size: 42px;
+    letter-spacing: -1.5px;
 }
 
 .feed-heading p {
@@ -603,8 +678,36 @@ a:focus-visible {
 
     .feed-layout {
         grid-template-columns: 1fr;
-        gap: 28px;
-        padding: 24px;
+        gap: 0;
+        padding: 0;
+    }
+
+    .sidebar {
+        padding: 32px 24px;
+    }
+
+    .feed-content {
+        padding: 32px 24px 48px;
+    }
+
+    .feed-home {
+        background: var(--background);
+    }
+
+    .feed-home .sidebar,
+    .feed-home .sidebar h2,
+    .feed-home .sidebar > .muted,
+    .feed-home .nav-link {
+        color: white;
+    }
+
+    .feed-home .nav-link.active {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+
+    .feed-home .nav-dot {
+        background: white;
     }
 
     .sidebar-note {
@@ -737,6 +840,76 @@ a:focus-visible {
     font-weight: 600;
 }
 
+/* Финальная сетка ленты. Этот блок намеренно расположен после базовых стилей,
+   чтобы старые правила сайдбара не могли его переопределить. */
+.feed-home .feed-layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    min-height: calc(100vh - 88px);
+}
+
+.feed-home .sidebar {
+    padding: var(--sidebar-padding-y) 32px 48px var(--sidebar-text-inset);
+    background: var(--red);
+    color: white;
+}
+
+.feed-home .sidebar .eyebrow {
+    display: block;
+    margin: 0 0 8px;
+    text-align: center;
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+}
+
+.feed-home .sidebar > .muted {
+    max-width: none;
+    margin: 0;
+    white-space: nowrap;
+    text-align: left;
+    color: white;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.2px;
+}
+
+.feed-home .feed-content {
+    min-width: 0;
+    padding: var(--content-padding-top) var(--content-padding-x) 72px;
+}
+
+.feed-home .feed-heading {
+    margin-bottom: 32px;
+}
+
+.feed-home .feed-heading h1 {
+    margin: 0;
+    font-size: 42px;
+}
+
+@media (max-width: 900px) {
+    .feed-home .feed-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .feed-home .sidebar {
+        padding: 32px 24px;
+    }
+
+    .feed-home .sidebar > .muted {
+        margin-left: 0;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .feed-home .feed-content {
+        padding: 32px 24px 48px;
+    }
+}
+
 .password-section {
     margin-top: 36px;
     padding-top: 30px;
@@ -759,7 +932,8 @@ a:focus-visible {
     display: inline-block;
     margin-bottom: 24px;
     color: var(--muted);
-    font-size: 14px;
+    font-size: 17px;
+    font-weight: 600;
 }
 
 .back-link:hover {
@@ -805,6 +979,7 @@ a:focus-visible {
 
 .analysis-summary > .eyebrow {
     color: #b52b22;
+    font-size: 14px;
 }
 
 .analysis-summary h3 {
@@ -841,6 +1016,12 @@ a:focus-visible {
 
 .analysis-section > .analysis-block {
     margin-bottom: 20px;
+}
+
+.alfa-analysis-block {
+    margin-bottom: 20px;
+    border-color: #f1d5d1;
+    background: #fff8f7;
 }
 
 .block-label {
