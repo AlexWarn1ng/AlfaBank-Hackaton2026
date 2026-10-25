@@ -8,7 +8,7 @@
           href="{{ url_for('static', filename='style.css') }}">
     <style>
         .analysis-loading { display: flex; align-items: center; gap: 12px; padding: 24px 0; }
-        .analysis-loading[hidden] {    display: none;}
+        .analysis-loading[hidden] { display: none; }
         .spinner { width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #ef3124; border-radius: 50%; animation: spin .8s linear infinite; }
         .analysis-error { display: none; }
         .analysis-evidence { font-size: .85rem; color: #666; margin-top: 6px; }
@@ -96,12 +96,19 @@ const content = document.getElementById("analysis-content");
 const errorBox = document.getElementById("analysis-error");
 const errorText = document.getElementById("analysis-error-text");
 function setList(id, items, emptyText) {
-    const list = document.getElementById(id); list.replaceChildren();
+    const list = document.getElementById(id);
+    list.replaceChildren();
     const values = Array.isArray(items) && items.length ? items : (emptyText ? [emptyText] : []);
-    values.forEach(item => { const li = document.createElement("li"); li.textContent = item; list.appendChild(li); });
+    values.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.appendChild(li);
+    });
 }
 async function loadAnalysis() {
-    loading.hidden = false; content.hidden = true; errorBox.style.display = "none";
+    loading.hidden = false;
+    content.hidden = true;
+    errorBox.style.display = "none";
     try {
         const response = await fetch("{{ url_for('news_analysis', news_id=news.id) }}", {method: "POST"});
         const payload = await response.json();
@@ -112,6 +119,7 @@ async function loadAnalysis() {
         document.getElementById("analysis-action").textContent = analysis.recommendedAction;
         setList("analysis-risks", analysis.potentialRisks, "Риски не указаны.");
         setList("analysis-opportunities", analysis.potentialOpportunities, "Возможности не указаны.");
+
         const sourceMap = new Map((Array.isArray(payload.sources) ? payload.sources : [])
             .filter(s => s && typeof s.sourceId === "string")
             .map(s => [s.sourceId, s]));
@@ -119,6 +127,7 @@ async function loadAnalysis() {
             const source = sourceMap.get(id);
             return source ? `${source.title || id} (${id})` : `Источник ${id}`;
         };
+
         const bank = analysis.bankPerspective;
         const bankText = typeof bank === "string" ? bank : bank?.summary;
         document.getElementById("alfa-analysis-text").textContent =
@@ -126,6 +135,7 @@ async function loadAnalysis() {
         document.getElementById("bank-perspective-sources").textContent =
             Array.isArray(bank?.evidenceIds) ? bank.evidenceIds.map(describeSource).join("; ") : "";
         setList("alfa-analysis-recommendations", [], "");
+
         const claims = document.getElementById("analysis-claims");
         claims.replaceChildren();
         const typeLabels = {fact: "Факт", inference: "Вывод AI", bank_opinion: "Мнение банка"};
@@ -145,8 +155,12 @@ async function loadAnalysis() {
             claims.appendChild(li);
         });
         content.hidden = false;
-    } catch (error) { errorText.textContent = error.message; errorBox.style.display = "block"; }
-    finally { loading.hidden = true; }
+    } catch (error) {
+        errorText.textContent = error.message;
+        errorBox.style.display = "block";
+    } finally {
+        loading.hidden = true;
+    }
 }
 document.getElementById("retry-analysis").addEventListener("click", loadAnalysis);
 loadAnalysis();
