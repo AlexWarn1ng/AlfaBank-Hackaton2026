@@ -1080,3 +1080,55 @@ a:focus-visible {
         font-size: 21px;
     }
 }
+
+/* Первые три новости в порядке, полученном от сервера. */
+.feed-home .news-card-featured {
+    position: relative;
+    overflow: hidden;
+    border-color: #f0ccc8;
+}
+
+.feed-home .news-card-featured::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--red);
+    pointer-events: none;
+}
+
+.news-priority-badge {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    margin-bottom: 16px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #fff0ee;
+    color: #b5251b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.feed-home .news-card-featured:hover {
+    border-color: #efaaa4;
+}
+
+/* Имя и должность начинаются на одной линии. */
+.feed-home .sidebar .sidebar-user-name {
+    text-align: left;
+    letter-spacing: normal;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+    .feed-home .sidebar > .muted {
+        text-align: left;
+    }
+}
+
+/* Прочитанная важная новость: задача выполнена. */
+.feed-home .news-card-featured.news-card-read::before {
+    display: none;
+}

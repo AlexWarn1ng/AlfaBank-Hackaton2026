@@ -31,7 +31,7 @@
 
     <main class="feed-layout">
         <aside class="sidebar">
-            <span class="eyebrow">ВАШ ПРОФИЛЬ</span>
+            <span class="eyebrow sidebar-user-name">{{ user.name }}</span>
             <p class="muted">{{ role }}</p>
 
             <nav class="side-nav" aria-label="Основная навигация">
@@ -69,9 +69,12 @@
             <!-- Вся карточка является ссылкой на подробный разбор -->
             <div class="news-list">
                 {% for item in news %}
-                    <a class="news-card"
+                    <a class="news-card{% if loop.index <= 3 %} news-card-featured{% endif %}{% if item.id in read_news_ids %} news-card-read{% endif %}"
                        href="{{ url_for('news_detail', news_id=item.id) }}">
 
+                        {% if loop.index <= 3 %}
+                            <span class="news-priority-badge">Важно для вас</span>
+                        {% endif %}
                         <h2>{{ item.title }}</h2>
                         <p class="news-summary">{{ item.text | truncate(240) }}</p>
 
