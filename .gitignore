@@ -1,32 +1,21 @@
-# Python
-**/.venv/
-**/__pycache__/
-**/*.pyc
-**/data/users.json
-
-# .NET
-**/bin/
-**/obj/
-**/.idea/
-**/.vs/
-
-# Environment variables
 .env
 .env.*
 !.env.example
-
-.vscode/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/bin/
+**/obj/
+**/.idea/
 .idea/
+.vscode/
 *.user
 *.suo
-*.userosscache
-*.sln
-*.vcxproj
-
 *.log
-*.obj
-*.o
-*.exe
-*.pdb
-*.ilk
-*.idb
+*.sqlite3
+*.sqlite3-*
+**/target/
+**/*.bak-analysis-v2
+**/*.bak
+!**/mvnw
+# Do not exclude *.sln: .NET solution is required for contributors.
