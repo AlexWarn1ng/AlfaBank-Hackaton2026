@@ -1132,3 +1132,12 @@ a:focus-visible {
 .feed-home .news-card-featured.news-card-read::before {
     display: none;
 }
+
+#analysis-content > .analysis-block + .analysis-block {
+    margin-top: 20px;
+}
+
+.alfa-analysis-block > .block-label {
+    color: #b52b22;
+    font-size: 14px;
+}

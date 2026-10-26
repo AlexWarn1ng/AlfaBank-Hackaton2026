@@ -55,7 +55,7 @@
                     <span class="eyebrow">ГЛАВНОЕ</span>
                     <h3 id="analysis-summary"></h3><p id="analysis-reason"></p>
                 </div>
-                <div class="analysis-grid">
+                <div id="analysis-details" class="analysis-grid">
                     <section class="analysis-block">
                         <h3>Возможности:</h3>
                         <ul id="analysis-opportunities" class="analysis-list">
@@ -75,13 +75,13 @@
                     <ul id="alfa-analysis-recommendations" class="analysis-list"></ul>
                     <div id="bank-perspective-sources" class="analysis-evidence"></div>
                 </section>
-                <section class="analysis-block">
-                    <h3>Подтверждающие источники и выводы</h3>
-                    <ul id="analysis-claims" class="analysis-list"></ul>
-                </section>
-                <section class="analysis-block">
+                <section id="analysis-action-block" class="analysis-block">
                     <h3>Что можно сделать?</h3>
                     <p id="analysis-action"></p>
+                </section>
+                <section id="analysis-claims-block" class="analysis-block">
+                    <h3>Подтверждающие источники и выводы</h3>
+                    <ul id="analysis-claims" class="analysis-list"></ul>
                 </section>
             </div>
             <div id="analysis-error" class="alert analysis-error" role="alert">
@@ -119,6 +119,10 @@ async function loadAnalysis() {
         document.getElementById("analysis-action").textContent = analysis.recommendedAction;
         setList("analysis-risks", analysis.potentialRisks, "Риски не указаны.");
         setList("analysis-opportunities", analysis.potentialOpportunities, "Возможности не указаны.");
+        const insufficientData = analysis.insufficientData === true;
+        document.getElementById("analysis-details").hidden = insufficientData;
+        document.getElementById("analysis-action-block").hidden = insufficientData;
+        document.getElementById("analysis-claims-block").hidden = insufficientData;
 
         const sourceMap = new Map((Array.isArray(payload.sources) ? payload.sources : [])
             .filter(s => s && typeof s.sourceId === "string")

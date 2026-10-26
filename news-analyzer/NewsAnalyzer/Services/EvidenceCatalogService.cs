@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using NewsAnalyzer.Models;
 
 namespace NewsAnalyzer.Services;
@@ -9,6 +9,15 @@ public sealed class EvidenceCatalogService
     {
         var sources = new List<EvidenceItem>();
         var context = state.Context;
+
+        // Подтверждённые данные человека: роль и известная география.
+        sources.Add(new EvidenceItem
+        {
+            SourceId = $"person:{context.User.UserId}",
+            SourceType = "person",
+            Title = "Профиль человека и выбранная должность",
+            Content = JsonSerializer.Serialize(context.User)
+        });
 
         // Основная анализируемая новость.
         sources.Add(new EvidenceItem
