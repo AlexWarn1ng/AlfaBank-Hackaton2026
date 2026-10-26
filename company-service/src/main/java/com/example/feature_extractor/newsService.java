@@ -123,23 +123,32 @@ public class newsService {
     }
 
     public List<Long> getNewsIds(String fid, String position) {
-        List<String> companyIds = linksRepository.getCompanyIdsByPerson(fid);
-        if(companyIds.isEmpty()){
-            throw new RuntimeException("Can not find your company");
-        }
-        Optional<jobtitle> jobTitleCurrent = jobtitlerepository.findByPosition(position);
-
-        jobtitle currentJob = jobTitleCurrent.orElseThrow(() -> new RuntimeException("Job Title not Found"));
-
-        String financeCriterion = currentJob.getFinanceImportanceRate();
-        String businessCriterion = currentJob.getBusinessImportanceRate();
-
-        int financeVal = Integer.parseInt(financeCriterion.replaceAll("[^0-9]", ""));
-        int businessVal = Integer.parseInt(businessCriterion.replaceAll("[^0-9]", ""));
-        List<Long> relevantNewsIds = aifeaturesrepository.findMatchingNewsIds(financeVal, businessVal);
-        return relevantNewsIds;
-
+    if (linksRepository.findBySyntheticF(fid).isEmpty()) {
+        throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND,
+                "Person not found"
+        );
     }
+
+    jobtitle currentJob = jobtitlerepository
+            .findByPosition(JobRoles.normalize(position))
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Job title not found"
+            ));
+
+    int financeVal = Integer.parseInt(
+            currentJob.getFinanceImportanceRate().replaceAll("[^0-9]", "")
+    );
+    int businessVal = Integer.parseInt(
+            currentJob.getBusinessImportanceRate().replaceAll("[^0-9]", "")
+    );
+
+    return aifeaturesrepository.findMatchingNewsIds(
+            financeVal,
+            businessVal
+    );
+}
 
     public Map<String, Object> getNews(List<Long> ids) {
 
