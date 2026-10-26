@@ -70,7 +70,7 @@ public sealed class AgentOrchestrator(
         state.ExecutionLog.Add(
             $"Загружено банковских материалов: " +
             $"{state.BankOpinions.Count}");
-
+    
         // Этап 4. Создаём первоначальный анализ.
         var analysis = await GenerateAnalysisAsync(
             state, null, ct);
@@ -129,8 +129,7 @@ public sealed class AgentOrchestrator(
             "Analysis could not be validated. Issues: {Issues}",
             string.Join("; ", validation.Issues));
 
-        throw new JsonException(
-            "Анализ не прошёл самопроверку после корректировки.");
+        return (CreateInsufficientDataFallback(state), state);
     }
 
     private async Task<int> ExecuteSearchesAsync(
@@ -232,5 +231,39 @@ public sealed class AgentOrchestrator(
         }
 
         return await validator.ValidateAsync(state, analysisJson, ct);
+    }
+
+        private static AnalysisResult CreateInsufficientDataFallback(
+        AnalysisState state)
+    {
+        var opinions = state.BankOpinions
+            .Where(opinion => !string.IsNullOrWhiteSpace(opinion.Text))
+            .ToList();
+
+        return new AnalysisResult
+        {
+            InsufficientData = true,
+            Summary = "Недостаточно подтверждённых данных для персонализированного анализа.",
+            RelevanceReason =
+                "Не удалось собрать достаточно надёжный контекст, чтобы дать вывод о влиянии события на конкретный бизнес. Ниже показаны доступные материалы Альфа-Банка.",
+            PotentialRisks = [],
+            PotentialOpportunities = [],
+            RecommendedAction = "",
+            Claims = [],
+            BankPerspective = opinions.Count == 0
+                ? null
+                : new BankPerspective
+                {
+                    Summary = string.Join(
+                        "\n\n",
+                        opinions.Select(opinion =>
+                            $"{opinion.Title}: {opinion.Text}"
+                        )
+                    ),
+                    EvidenceIds = opinions
+                        .Select(opinion => $"bank:{opinion.Id}")
+                        .ToList()
+                }
+        };
     }
 }

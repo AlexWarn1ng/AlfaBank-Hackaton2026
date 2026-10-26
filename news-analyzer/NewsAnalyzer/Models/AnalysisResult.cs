@@ -4,6 +4,9 @@ namespace NewsAnalyzer.Models;
 
 public sealed class AnalysisResult
 {
+    [JsonPropertyName("insufficientData")]
+    public bool InsufficientData { get; set; }
+
     [JsonPropertyName("summary")]
     public string Summary { get; set; } = "";
 
